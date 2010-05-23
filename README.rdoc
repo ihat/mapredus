@@ -1,6 +1,6 @@
 = mapreduce
 
-Description goes here.
+simple mapreduce type framework using redis and resque.
 
 == Note on Patches/Pull Requests
  
