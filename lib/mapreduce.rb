@@ -104,7 +104,7 @@ module MapRedus
     def self.hash( key )
       key.to_s.hash.abs.to_s(16)
     end
-    
+
     # Returns the classname of the namespaced class.
     #
     # The full name of the class.
@@ -120,7 +120,7 @@ module MapRedus
     end
     
   end
-  
+
   # This is what keeps track of our map reduce processes
   #  
   # We use a redis key to identify the id of map reduce process
