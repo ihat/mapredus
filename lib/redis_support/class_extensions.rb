@@ -12,8 +12,11 @@ module RedisSupport
     # review and then some. Basic goal is to allow a class to declare
     # something like this:
     #
-    # key :workpools, "job:JOB_ID:workpools"
+    # Examples
     #
+    #   key :workpools, "job:JOB_ID:workpools"
+    #
+    # Returns the redis key.
     def redis_key( name, keystruct )
       if Keys.methods.include? name.to_s
         return # New Relic re-invokes this method.
@@ -42,6 +45,7 @@ module RedisSupport
           # this is just a safeguard against infinite loops due to
           # bugs in the key parsing logic. Dump the StringScanner for
           # debugging and raise an error
+          #
           raise InvalidKeyDefinitionError.new "Internal error parsing #{keystruct} : Scanner: #{s.inspect}"
         end
       end
