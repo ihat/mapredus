@@ -549,11 +549,85 @@ module MapRedus
       end
     end
 
-    # Keep track of information that may show up as the redis json value
-    # This is so we know exactly what might show up in the json hash
+    # Public: Keep track of information that may show up as the redis json value
+    #         This is so we know exactly what might show up in the json hash
     #
+    # Returns the pid.
     attr_reader :pid
-    attr_accessor  :mapper, :reducer, :finalizer, :data, :extra_data, :ordered, :synchronous
+    
+    
+    # Public: Get the mapper.
+    #
+    # Returns the mapper.
+    attr_reader :mapper
+    
+    # Set the mapper
+    #
+    # Returns nothing.
+    attr_writer :mapper
+    
+    
+    # Public: Get the reducer.
+    #
+    # Returns the reducer.    
+    attr_reader :reducer
+    
+    # Sets the reducer.
+    #
+    # Returns nothing.
+    attr_writer :reducer
+    
+    # Public: Get the finalizer.
+    # 
+    # Returns the finalizer.
+    attr_reader :finalizer
+    
+    # Sets the finalizer.
+    # 
+    # Returns nothing.
+    attr_writer :finalizer
+
+    # Public: Get the data.
+    # 
+    # Returns the data.
+    attr_reader :data
+    
+    # Sets the data
+    # 
+    # Returns nothing.
+    attr_writer :data
+    
+    # Public: Get the extra_data.
+    # 
+    # Returns the extra_data.
+    attr_reader :extra_data
+    
+    # Sets the extra_data.
+    # 
+    # Returns nothing.
+    attr_writer :extra_data
+
+    # Public: Get the ordered
+    # 
+    # Returns the ordered.
+    attr_reader :ordered
+    
+    # Sets the ordered.
+    # 
+    # Returns nothing.
+    attr_writer :ordered
+
+    # Public: Get the the synchronous.
+    # 
+    # Retruns the synchronous.
+    attr_reader :synchronous
+    
+    # Sets the synchronous.
+    # 
+    # Returns nothing.
+    attr_writer :synchronous
+
+    
     def initialize(pid, json_info)
       @pid = pid
       @json = json_info
