@@ -121,6 +121,8 @@ module MapRedus
   end
 end
 
+require 'redis_support'
+
 require 'mapreduce/job'
 require 'mapreduce/job/manager'
 require 'mapreduce/job/master'
