@@ -148,10 +148,14 @@ module MapRedus
         destroyed
       end
 
+      # Check whether there are still workers working on job PID's processes
+      #
       def self.working?(pid)
         0 < redis.llen(Keys.slaves(pid))
       end
 
+      # Time metrics for measuring how long it takes map reduce to do a job
+      #
       def self.set_request_time(pid)
         redis.set( Keys.requested_at(pid), Time.now.to_i )
       end

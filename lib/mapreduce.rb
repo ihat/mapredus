@@ -116,7 +116,7 @@ module MapRedus
     #
     # Returns the class name.
     def self.class_get(string)
-      string.is_a?(String) ? string.split("::").inject(Object) { |r, n| r.const_get(n) } : string
+      string.is_a?(String) ? string.split("::").reduce(Object) { |r, n| r.const_get(n) } : string
     end
   end
 end
