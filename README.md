@@ -3,18 +3,51 @@ MapRedus
 
 Simple MapRedus type framework using redis and resque.
 
-Note on Patches/Pull Requests
------------------------------
- 
-* Fork the project.
-* Make your feature addition or bug fix.
-* Add tests for it. This is important so I don't break it in a
-  future version unintentionally.
-* Commit, do not mess with rakefile, version, or history.
-	(if you want to have your own version, that is fine but bump version in a commit by itself I can ignore when I pull)
-* Send me a pull request. Bonus points for topic branches.
+Using MapRedus
+---------------
 
-## Copyright
+MapRedus uses Resque to handle the processes that it runs,
+and redis to keep a store for the values/data produced.
+
+Workers for a MapRedus job, are Resque workers.  Refer to the
+Resque worker documentation to see how to load the necessary
+environment for your worker to be able to run mapreduce jobs.
+An example is also located in the tests.
+
+### Mappers, Reducers, Finalizers
+MapRedus needs a mapper, reducer, finalizer to be defined to run, for example:
+
+    class Mapper < MapRedus::Mapper
+      def self.map(data_to_map)
+        data_to_map.split(" ").each do |data|
+          key, value = data.split(",")
+          yield( key, value )
+        end
+      end
+    end
+
+In this example, the mapper's map function calls yield to emit the key value pair
+for storage in redis.  The reducer's reduce function acts similarly.
+
+The finalizer runs whatever needs to be run when a job completes, an example:
+
+    class Finalizer < MapRedus::Finalizer
+      def self.finalize(mapreduce_job_id)
+        result = {}
+        each_key_value(mapreduce_job_id) do |key, value|
+          result[key] = value
+        end
+        MapRedus::Job.save_result(MapReduce::Support.encode(result), mapreduce_job_id, "test:result")
+      end
+    end
+
+Job ids and their information are destroyed in the delete call.  In this example
+the saved result is saved for as long as needed.
+
+Running Tests
+-------------
+Run the tests which tests the word counter example
+* rake test
 
 requirements:
   Redis
@@ -69,5 +102,16 @@ TODO: * if a job fails we do what we are supposed to do
           the result
     *** refactor manager/master so that master talks to a "filesystem" (we'll create this filesystem module/class)
 
-
+Note on Patches/Pull Requests
+-----------------------------
+ 
+* Fork the project.
+* Make your feature addition or bug fix.
+* Add tests for it. This is important so I don't break it in a
+  future version unintentionally.
+* Commit, do not mess with rakefile, version, or history.
+	(if you want to have your own version, that is fine but bump version in a commit by itself I can ignore when I pull)
+* Send me a pull request. Bonus points for topic branches.
+    
+## Copyright
 Copyright (c) 2010 Dolores Labs. See LICENSE for details.
