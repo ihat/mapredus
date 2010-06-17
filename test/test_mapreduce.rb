@@ -4,6 +4,7 @@ context "MapRedus" do
 
   # this is called before each test case
   setup do
+    MapRedus::FileSystem.flushall
     @pid = GetWordCount.create(["There was nothing so VERY remarkable in that; nor did Alice think it so
 VERY much out of the", "way to hear the Rabbit say to itself, 'Oh dear!
 Oh dear! I shall be late!'", "(when she thought it over afterwards, it
@@ -29,8 +30,16 @@ it all seemed quite natural);"])
 
   test "test running a map reduce job asynchronously" do
     GetWordCount.run(@pid, synchronously = false)
-    
-    mr_result = MapRedus::Support.decode(GetWordCount.get_saved_result("test:result"))
+    Resque::Worker.new("*").work(0)
+
+    tries = 10
+    result = nil
+    while (tries-=1)>0 and not (result = GetWordCount.get_saved_result("test:result")) do
+      puts tries
+      sleep 1
+    end
+
+    mr_result = MapRedus::Support.decode(result)
     assert_equal @word_count, mr_result
   end
 end
