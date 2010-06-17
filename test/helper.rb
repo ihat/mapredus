@@ -52,15 +52,18 @@ at_exit do
   puts "Killing test redis server..."
   `rm -f #{dir}/dump.rdb`
   Process.kill("KILL", pid.to_i)
-  exit exit_code
+  # exit exit_code
 end
 
 puts "Starting redis for testing at localhost:9736..."
-`redis-server #{dir}/redis-test.conf`
+`/Users/john/main/code/redis/redis-server #{dir}/redis-test.conf`
 
 MapRedus.redis = 'localhost:9736:0'
 Resque.redis = MapRedus.redis
+require 'resque/failure/redis'
+Resque::Failure.backend = Resque::Failure::Redis
 
+require 'helper_classes'
 class GetWordCount < MapRedus::Job
   def self.specification(data)
     {
@@ -77,7 +80,7 @@ end
 class WordCounter < MapRedus::Mapper
   def self.partition_size; 1; end
   def self.map(map_data)
-    map_data.split(/\W/).each do |word|
+    map_data.join(" ").split(/\W/).each do |word|
       next if word.empty?
       yield(word.downcase, 1)
     end
@@ -91,13 +94,13 @@ class Adder < MapRedus::Reducer
 end
 
 class ToHash < MapRedus::Finalizer
-  def self.finalize
+  def self.finalize(pid)
     result = {}
     each_key_value(pid) do |key, value|
       result[key] = value.to_i
     end
     MapRedus::Job.save_result(MapReduce::Support.encode(result), pid, "test:result")
-    MapRedus::Job.cleanup(pid)
+    MapRedus::Job.delete(pid)
     result
   end
 end
