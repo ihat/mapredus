@@ -18,7 +18,7 @@ module MapRedus
 
     def self.save_temporary(key, value, time = 3600)
       save(key, value)
-      storage.expire(key)
+      storage.expire(key, time)
     end
 
     def self.method_missing(method, *args, &block)

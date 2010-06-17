@@ -8,6 +8,22 @@ module MapRedus
   #
   class Master < QueueProcess
     DEFAULT_WAIT = 10 # seconds
+    
+    # TODO: this is where we would define an input reader 
+    #
+    def self.partition_data( arr, partition_size )
+      0.step(arr.size, partition_size) do |i|
+        yield arr[i...(i + partition_size)]
+      end
+    end
+
+    # Check whether there are still workers working on job PID's processes
+    #
+    # In synchronous condition, master is always working since nothing is going to
+    # the queue.
+    def self.working?(pid)
+      0 < FileSystem.llen(JobInfo.slaves(pid)) || Job.open(pid).synchronous
+    end
 
     #
     # Master performs the work that it needs to do: 
@@ -18,12 +34,17 @@ module MapRedus
       free_slave(pid)
       enslave_mappers(pid)
     end
-    
-    # TODO: this is where we would define an input reader 
+
     #
-    def self.partition_data( arr, partition_size )
-      0.step(arr.size, partition_size) do |i|
-        yield arr[i...(i + partition_size)]
+    # The order of operations that occur in the mapreduce process
+    #
+    def self.mapreduce(job)
+      if job.synchronous
+        enslave_mappers(job.pid)
+        enslave_reducers(job.pid)
+        enslave_finalizer(job.pid)
+      else
+        enslave( job.pid, QueueProcess.queue, MapRedus::Master, job.pid ) 
       end
     end
 
@@ -42,9 +63,16 @@ module MapRedus
     def self.enslave_reducers( pid )
       job = Job.open(pid)
       return unless job
-      FileSystem.map_keys(pid).each do |key|
+      
+      Job.map_keys(pid).each do |key|
         enslave_reduce( pid, key )
       end
+    end
+
+    def self.enslave_finalizer( pid )
+      job = Job.open(pid)
+      return unless job
+      enslave( pid, job.finalizer.queue, job.finalizer, pid )
     end
 
     # Have these to match what the Mapper/Reducer perform function expects to see as arguments
@@ -65,12 +93,6 @@ module MapRedus
       job = Job.open(pid)
       return unless job
       enslave_later( DEFAULT_WAIT, pid, job.reducer.queue, job.reducer, pid, key )
-    end
-
-    def self.enslave_finalizer( pid )
-      job = Job.open(pid)
-      return unless job
-      enslave( pid, job.finalizer.queue, job.finalizer, pid )
     end
 
     # The current default q (QUEUE) that we push on to is
@@ -134,12 +156,6 @@ module MapRedus
       
       FileSystem.del(JobInfo.slaves(pid))
       destroyed
-    end
-
-    # Check whether there are still workers working on job PID's processes
-    #
-    def self.working?(pid)
-      0 < FileSystem.llen(JobInfo.slaves(pid))
     end
 
     # Time metrics for measuring how long it takes map reduce to do a job

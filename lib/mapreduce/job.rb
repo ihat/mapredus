@@ -24,13 +24,13 @@ module MapRedus
     def initialize(pid, json_info)
       @pid = pid
       @json = json_info
-      @mapper = Support.class_get(@json["mapper"])
-      @reducer = Support.class_get(@json["reducer"])
-      @finalizer = Support.class_get(@json["finalizer"])
-      @data = @json["data"]
-      @ordered = @json["ordered"]
-      @extra_data = @json["extra_data"]
-      @synchronous = @json["synchronous"]
+      @mapper = Support.class_get(@json["mapper"] || @json[:mapper])
+      @reducer = Support.class_get(@json["reducer"] || @json[:reducer])
+      @finalizer = Support.class_get(@json["finalizer"] || @json[:finalizer])
+      @data = @json["data"] || @json[:data]
+      @ordered = @json["ordered"] || @json[:ordered]
+      @extra_data = @json["extra_data"] || @json[:extra_data]
+      @synchronous = @json["synchronous"] || @json[:synchronous]
     end
 
     def to_s; to_json; end
@@ -53,8 +53,8 @@ module MapRedus
     end
 
     def save
-      FileSystem.sadd( JobInfo.jobs, @pid) 
-      FileSystem.save( JobInfo.pid(@pid), to_json)
+      FileSystem.sadd( JobInfo.jobs, @pid ) 
+      FileSystem.save( JobInfo.pid(@pid), to_json )
     end
 
     def update(attrs = {})
@@ -88,7 +88,6 @@ module MapRedus
       return nil unless spec
 
       Job.new(new_pid, spec).save
-      
       new_pid
     end
     
@@ -110,7 +109,8 @@ module MapRedus
       return unless job
 
       job.update(:synchronous => synchronous)
-      Master.enslave( job.pid, QueueProcess.queue, MapRedus::Master, job.pid )
+
+      Master.mapreduce( job )
       true
     end
 
@@ -131,8 +131,8 @@ module MapRedus
     
     def self.open(pid)
       return pid if pid.is_a?(Job) 
-      job = FileSystem.get(JobInfo.pid(pid))
-      job && Job.new(pid, Support.decode( job ))
+      job = Support.decode( FileSystem.get(JobInfo.pid(pid)) )
+      job && Job.new( pid, job )
     end
 
     # Saves the result to the specified keyname
@@ -151,7 +151,6 @@ module MapRedus
       return unless job
 
       serialized_result = job.finalizer.serialize(result)
-
       FileSystem.save(JobInfo.result(pid), serialized_result) if pid
       FileSystem.save_temporary(JobInfo.result_custom_key(keyname), serialized_result, 3600 * 24) if keyname
       true
@@ -222,8 +221,8 @@ module MapRedus
       true
     end
 
-    # The following functions deal with items produced during the
-    # running of a job
+    ### The following functions deal with keys/values produced during the
+    ### running of a job
     
     # Keys that the map operation produced
     #
