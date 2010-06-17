@@ -1,5 +1,6 @@
 # requirements:
 #   Redis
+#   RedisSupport
 #   Resque
 #   Resque-scheduler
 #   json parser
