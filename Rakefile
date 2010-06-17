@@ -1,3 +1,5 @@
+## -*- ruby -*-
+
 require 'rubygems'
 require 'rake'
 
@@ -6,14 +8,14 @@ begin
   Jeweler::Tasks.new do |gem|
     gem.name = "mapreduce"
     gem.summary = %Q{mapreduce initial}
-    gem.description = %Q{TODO: longer description of your gem}
+    gem.description = %Q{simple mapreduce framework using redis and resque}
     gem.email = "john@doloreslabs.com"
     gem.homepage = "http://github.com/sandbox/mapreduce"
     gem.authors = ["John Le"]
-    gem.add_development_dependency "thoughtbot-shoulda", ">= 0"
+    gem.files = Dir['lib/**/*.rb']
     gem.add_dependency "redis", ">= 1.0.4"
     gem.add_dependency "resque", ">= 1.8"
-    # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
+    gem.add_dependency "redis_support", ">= 0"
   end
   Jeweler::GemcutterTasks.new
 rescue LoadError
@@ -25,19 +27,6 @@ Rake::TestTask.new(:test) do |test|
   test.libs << 'lib' << 'test'
   test.pattern = 'test/**/test_*.rb'
   test.verbose = true
-end
-
-begin
-  require 'rcov/rcovtask'
-  Rcov::RcovTask.new do |test|
-    test.libs << 'test'
-    test.pattern = 'test/**/test_*.rb'
-    test.verbose = true
-  end
-rescue LoadError
-  task :rcov do
-    abort "RCov is not available. In order to run rcov, you must: sudo gem install spicycode-rcov"
-  end
 end
 
 task :test => :check_dependencies
