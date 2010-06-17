@@ -1,9 +1,3 @@
-require 'redis'
-require 'resque'
-require 'resque_scheduler'
-require 'resque/server'
-require 'json'
-
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), "/"))
 require 'mapreduce'
 
@@ -12,14 +6,15 @@ require 'mapreduce'
 
 # setup the redis server
 #
-
+MapRedus.redis = 'localhost:6379:0'
+Resque.redis = MapRedus.redis
 # setup the resque server with the correct class environment
 #
-use Rack::ShowExceptions
-use Rack::ShowStatus
-use Rack::Auth::Basic do |u,p|  
-  "password" == p
-end     
+# use Rack::ShowExceptions
+# use Rack::ShowStatus
+# use Rack::Auth::Basic do |u,p|  
+#   "password" == p
+# end     
 
-run Resque::Server.new
+# run Resque::Server.new
 

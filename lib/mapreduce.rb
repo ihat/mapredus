@@ -50,7 +50,14 @@
 #           the result
 #     *** refactor manager/master so that master talks to a "filesystem" (we'll create this filesystem module/class)
 #
+
+require 'redis'
+require 'redis_support'
+require 'resque'
+
 module MapRedus
+  include RedisSupport
+  
   class InvalidProcess < Exception
     def initialize; super("MapRedus QueueProcess: need to have perform method defined");end
   end
@@ -77,19 +84,29 @@ module MapRedus
   # Caution: defines redis, which is also defined in RedisSupport
   # 
   class QueueProcess
-    include Resque::Helpers
     def self.queue; :mapreduce; end
     def self.perform(*args); raise InvalidProcess; end
-  end  
+  end
 
   # TODO: When you send work to a worker using a mapper you define, 
   # the worker won't have that class name defined, unless it was started up
   # with the class loaded
   #
-  def self.register_reducer(klass); end;
-  def self.register_mapper(klass); end;
+  def register_reducer(klass); end;
+  def register_mapper(klass); end;
 
   class Support
+    # resque helpers defines
+    #   redis
+    #   encode
+    #   decode
+    #   classify
+    #   constantize
+    #
+    # This is extended here because we want to use the encode and decode function
+    # when we interact with resque queues
+    extend Resque::Helpers
+
     # Defines a hash by taking the absolute value of ruby's string
     # hash to rid the dashes since redis keys should not contain any.
     #
@@ -118,14 +135,13 @@ module MapRedus
     def self.class_get(string)
       string.is_a?(String) ? string.split("::").reduce(Object) { |r, n| r.const_get(n) } : string
     end
-  end
+  end 
 end
 
-require 'redis_support'
-
+require 'mapreduce/keys'
 require 'mapreduce/job'
-require 'mapreduce/job/manager'
-require 'mapreduce/job/master'
+require 'mapreduce/filesystem'
+require 'mapreduce/master'
 require 'mapreduce/mapper'
 require 'mapreduce/reducer'
 require 'mapreduce/finalizer'

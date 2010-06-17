@@ -35,12 +35,12 @@ module MapRedus
     def self.deserialize(serialized_result); serialized_result; end
 
     def self.perform(pid)
-      Job::Master.free_slave(pid)
+      Master.free_slave(pid)
       
       job = Job.open(pid)
       return unless job
       result = finalize(pid)
-      Job::Master.finish_metrics(pid)
+      Master.finish_metrics(pid)
       
       result
     end
