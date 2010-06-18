@@ -7,6 +7,7 @@ module MapRedus
   # Holds the current map reduce processes that are either running or which still have data lying around
   #
   redis_key :jobs, "mapreduce:jobs"
+  redis_key :jobs_count, "mapreduce:jobs:count"  ## TODO: use this
   
   # Holds the information (mapper, reducer, etc.) in json format for a map reduce job with pid PID
   #
@@ -36,7 +37,7 @@ module MapRedus
   # In normal map reduce we would just be outputting files
   #
   redis_key :result, "mapreduce:job:PID:result"
-  redis_key :result_custom_key, "mapreduce:result:KEYNAME"
+  redis_key :result_cache, "mapreduce:result:KEYNAME"
 
 
   #### USED WITHIN master.rb ####
@@ -49,7 +50,7 @@ module MapRedus
   redis_key :slaves, "mapreduce:job:PID:master:slaves"
 
   #
-  # Use this key to keep track of which operations are currently being run
+  # Use these constants to keep track of the progress of a job
   #
   # Example
   #   state => map_in_progress
@@ -57,8 +58,21 @@ module MapRedus
   #            finalize_in_progress
   #            complete
   #            failed
+  #            not_started
   #
-  redis_key :state, "mapreduce:job:PID:master:state"
+  # contained in the JobInfo hash (redis_key :state, "mapreduce:job:PID:master:state")
+  #
+  NOT_STARTED = "not_started"
+  MAP_IN_PROGRESS = "mappers"
+  REDUCE_IN_PROGRESS = "reducers"
+  FINALIZER_IN_PROGRESS = "finalizer"
+  COMPLETE = "complete"
+  FAILED = "failed"
+  STATE_MACHINE = { nil => NOT_STARTED,
+    NOT_STARTED => MAP_IN_PROGRESS,
+    MAP_IN_PROGRESS => REDUCE_IN_PROGRESS,
+    REDUCE_IN_PROGRESS => FINALIZER_IN_PROGRESS,
+    FINALIZER_IN_PROGRESS => COMPLETE}
 
   # These keep track of timing information for a map reduce job of pid PID
   #

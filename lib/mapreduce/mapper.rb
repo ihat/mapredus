@@ -21,24 +21,15 @@ module MapRedus
     def self.map(data_chunk); raise InvalidMapper; end
     
     def self.perform(pid, data_chunk)
-      Master.free_slave( pid )
-      
       job = Job.open(pid)
       return unless job
       
-      map_result = map( data_chunk ) do |*key_value|
-        Job.emit_intermediate(pid, key_value)
+      map( data_chunk ) do |*key_value|
+        job.emit_intermediate(key_value)
       end
-      
-      if ( not Master.working?(pid) )
-        # This means all the map jobs have finished
-        # so now we can start all of the reducers
-        # TODO: wonky, should take this book keeping out of here
-        #        
-        Master.enslave_reducers( pid )
-      end
-      
-      map_result
+    ensure
+      Master.free_slave(pid)
+      job.next_state
     end
   end
 end

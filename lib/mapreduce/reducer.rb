@@ -16,28 +16,19 @@ module MapRedus
     
     # Doesn't handle redundant workers and fault tolerance
     #
+    # TODO: Resque::AutoRetry might mess this up.
     def self.perform(pid, key)
+      job = Job.open(pid)
+      return unless job
+      
+      reduce(job.map_values(key)) do |reduce_val|
+        job.emit( key, reduce_val )
+      end
+    rescue MapRedus::RecoverableFail
+      Master.enslave_later_reduce(job, key)
+    ensure
       Master.free_slave(pid)
-      
-      begin
-        job = Job.open(pid)
-        return unless job
-        reduction = reduce(Job.map_values(pid, key)) do |reduce_val|
-          Job.emit( pid, key, reduce_val )
-        end
-      rescue MapRedus::RecoverableFail
-        Master.enslave_later_reduce(pid, key)
-      end
-
-      if ( not Master.working?(pid) )
-        # This means all the reduce jobs have finished
-        # so now we can start the finalization process
-        # TODO: wonky, should take this book keeping out of here
-        #
-        Master.enslave_finalizer( pid )
-      end
-      
-      reduction
+      job.next_state
     end
   end
 end

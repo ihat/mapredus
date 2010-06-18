@@ -8,18 +8,7 @@ module MapRedus
   # job is completed storing the necessary info.
   #
   class Finalizer < QueueProcess
-    def self.each_key_value(pid)
-      Job.each_key_value(pid) do |key, value|
-        yield key, value
-      end
-    end
 
-    def self.each_key_original_value(pid)
-      Job.each_key_original_value(pid) do |key, value|
-        yield key, value
-      end
-    end
-    
     # The default finalizer is to notify of job completion
     #
     # Example
@@ -31,18 +20,15 @@ module MapRedus
       "MapRedus Job : #{pid} : has completed"
     end
 
-    def self.serialize(result); result; end
-    def self.deserialize(serialized_result); serialized_result; end
-
     def self.perform(pid)
-      Master.free_slave(pid)
-      
       job = Job.open(pid)
       return unless job
-      result = finalize(pid)
+      result = finalize(job)
       Master.finish_metrics(pid)
-      
       result
+    ensure
+      Master.free_slave(pid)
+      job.next_state
     end
   end
 end

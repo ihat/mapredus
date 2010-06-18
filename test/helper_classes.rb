@@ -6,7 +6,7 @@ class GetWordCount < MapRedus::Job
       :finalizer => ToHash,
       :data => data,
       :ordered => false,
-      :extra_data => {}
+      :keyname => "test:result"
     }
   end
 end
@@ -28,13 +28,13 @@ class Adder < MapRedus::Reducer
 end
 
 class ToHash < MapRedus::Finalizer
-  def self.finalize(pid)
+  def self.finalize(job)
     result = {}
-    each_key_value(pid) do |key, value|
+    job.each_key_reduced_value do |key, value|
       result[key] = value.to_i
     end
-    MapRedus::Job.save_result(MapReduce::Support.encode(result), pid, "test:result")
-    MapRedus::Job.delete(pid)
+    job.save_result(MapRedus::Support.encode(result))
+    # job.delete
     result
   end
 end
