@@ -5,23 +5,23 @@ require 'resque'
 module MapRedus
   include RedisSupport
   
-  class InvalidProcess < Exception
+  class InvalidProcess < NotImplementedError
     def initialize; super("MapRedus QueueProcess: need to have perform method defined");end
   end
 
-  class InvalidMapper < Exception
+  class InvalidMapper < NotImplementedError
     def initialize; super("MapRedus Mapper: need to have map method defined");end
   end
 
-  class InvalidReducer < Exception
+  class InvalidReducer < NotImplementedError
     def initialize; super("MapRedus Reducer: need to have reduce method defined");end
   end
 
-  class InvalidJob < Exception
+  class InvalidJob < NotImplementedError
     def initialize; super("MapRedus Job Creation Failed: Specifications were not specified");end
   end
 
-  class RecoverableFail < Exception
+  class RecoverableFail < StandardError
     def initialize; super("MapRedus Operation Failed: but it is recoverable") ;end
   end
   
@@ -80,7 +80,7 @@ module MapRedus
     #
     # Returns the class name.
     def self.class_get(string)
-      string.is_a?(String) ? string.split("::").reduce(Object) { |r, n| r.const_get(n) } : string
+      constantize(string)
     end
   end 
 end
