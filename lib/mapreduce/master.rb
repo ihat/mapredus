@@ -1,20 +1,20 @@
 module MapRedus
-  # Note: Instead of using Resque directly within the job, we implement
+  # Note: Instead of using Resque directly within the process, we implement
   # a master interface with Resque
   #
   # Does bookkeeping to keep track of how many slaves are doing work. If we have
-  # no slaves doing work for a job then the job is done. While there is work available
+  # no slaves doing work for a process then the process is done. While there is work available
   # the slaves will always be doing work.
   #
   class Master < QueueProcess
     DEFAULT_WAIT = 10 # seconds
     
-    # Check whether there are still workers working on job PID's processes
+    # Check whether there are still workers working on process PID's processes
     #
     # In synchronous condition, master is always working since nothing is going to
     # the queue.
     def self.working?(pid)
-      0 < FileSystem.llen(JobInfo.slaves(pid))
+      0 < FileSystem.llen(ProcessInfo.slaves(pid))
     end
 
     #
@@ -23,24 +23,24 @@ module MapRedus
     #   enslave mappers
     #
     def self.perform( pid )
-      job = Job.open(pid)
-      job.update(:state => MAP_IN_PROGRESS)
-      enslave_mappers(job)
+      process = Process.open(pid)
+      process.update(:state => MAP_IN_PROGRESS)
+      enslave_mappers(process)
     end
 
     #
     # The order of operations that occur in the mapreduce process
     #
-    def self.mapreduce(job)
-      if job.synchronous
-        job.update(:state => MAP_IN_PROGRESS)
-        enslave_mappers(job)
-        job.update(:state => REDUCE_IN_PROGRESS)
-        enslave_reducers(job)
-        job.update(:state => FINALIZER_IN_PROGRESS)
-        enslave_finalizer(job)
+    def self.mapreduce(process)
+      if process.synchronous
+        process.update(:state => MAP_IN_PROGRESS)
+        enslave_mappers(process)
+        process.update(:state => REDUCE_IN_PROGRESS)
+        enslave_reducers(process)
+        process.update(:state => FINALIZER_IN_PROGRESS)
+        enslave_finalizer(process)
       else
-        Resque.push(QueueProcess.queue, {:class => MapRedus::Master , :args => [job.pid]} )
+        Resque.push(QueueProcess.queue, {:class => MapRedus::Master , :args => [process.pid]} )
       end
     end
 
@@ -52,58 +52,58 @@ module MapRedus
       end
     end
     
-    def self.enslave_mappers( job )
-      start_metrics(job.pid)
+    def self.enslave_mappers( process )
+      start_metrics(process.pid)
       
-      partition_data( job.data, job.mapper.partition_size ) do |data_chunk|
+      partition_data( process.data, process.mapper.partition_size ) do |data_chunk|
         unless data_chunk.empty?
-          enslave_map( job, data_chunk )
+          enslave_map( process, data_chunk )
         end
       end
     end
 
-    def self.enslave_reducers( job )
-      job.map_keys.each do |key|
-        enslave_reduce( job, key )
+    def self.enslave_reducers( process )
+      process.map_keys.each do |key|
+        enslave_reduce( process, key )
       end
     end
 
-    def self.enslave_finalizer( job )
-      enslave( job, job.finalizer.queue, job.finalizer, job.pid )
+    def self.enslave_finalizer( process )
+      enslave( process, process.finalizer.queue, process.finalizer, process.pid )
     end
 
     # Have these to match what the Mapper/Reducer perform function expects to see as arguments
     #
-    # though instead of job the perform function will receive the pid
-    def self.enslave_map(job, data_chunk)
-      enslave( job, job.mapper.queue, job.mapper, job.pid, data_chunk )
+    # though instead of process the perform function will receive the pid
+    def self.enslave_map(process, data_chunk)
+      enslave( process, process.mapper.queue, process.mapper, process.pid, data_chunk )
     end
 
-    def self.enslave_reduce(job, key)
-      enslave( job, job.reducer.queue, job.reducer, job.pid, key )
+    def self.enslave_reduce(process, key)
+      enslave( process, process.reducer.queue, process.reducer, process.pid, key )
     end
 
-    def self.enslave_later_reduce(job, key)
-      enslave_later( DEFAULT_WAIT, job, job.reducer.queue, job.reducer, job.pid, key )
+    def self.enslave_later_reduce(process, key)
+      enslave_later( DEFAULT_WAIT, process, process.reducer.queue, process.reducer, process.pid, key )
     end
 
     # The current default q (QUEUE) that we push on to is
     #   :mapreduce
     #
-    def self.enslave( job, q, klass, *args )
-      FileSystem.rpush(JobInfo.slaves(job.pid), 1)
+    def self.enslave( process, q, klass, *args )
+      FileSystem.rpush(ProcessInfo.slaves(process.pid), 1)
       
-      if( job.synchronous )
+      if( process.synchronous )
         klass.perform(*args)
       else
         Resque.push( q, { :class => klass.to_s, :args => args } )
       end
     end
 
-    def self.enslave_later( delay_in_seconds, job, q, klass, *args)
-      FileSystem.rpush(JobInfo.slaves(job.pid), 1)
+    def self.enslave_later( delay_in_seconds, process, q, klass, *args)
+      FileSystem.rpush(ProcessInfo.slaves(process.pid), 1)
 
-      if( job.synchronous )
+      if( process.synchronous )
         klass.perform(*args)
       else
         Resque.enqueue_at(Time.now + delay_in_seconds, q, klass, *args)
@@ -111,12 +111,12 @@ module MapRedus
     end
 
     def self.free_slave(pid)
-      FileSystem.lpop(JobInfo.slaves(pid))
+      FileSystem.lpop(ProcessInfo.slaves(pid))
     end
 
     def self.emancipate(pid)
-      job = Job.open(pid)
-      return unless job
+      process = Process.open(pid)
+      return unless process
       
       # Working on resque directly seems dangerous
       #
@@ -124,48 +124,48 @@ module MapRedus
       # and isn't intended for normal use.  It is potentially very expensive.
       #
       destroyed = 0
-      qs = [queue, job.mapper.queue, job.reducer.queue, job.finalizer.queue].uniq
+      qs = [queue, process.mapper.queue, process.reducer.queue, process.finalizer.queue].uniq
       qs.each do |q|
         q_key = "resque:queue:#{q}"
         Resque.redis.lrange(q_key, 0, -1).each do | string |
           json   = Support.decode(string)
-          match  = json['class'] == "MapRedus::Job::Master"
-          match |= json['class'] == job.mapper.to_s
-          match |= json['class'] == job.reducer.to_s
-          match |= json['class'] == job.finalizer.to_s
-          match &= json['args'][0] == job.pid
+          match  = json['class'] == "MapRedus::Master"
+          match |= json['class'] == process.mapper.to_s
+          match |= json['class'] == process.reducer.to_s
+          match |= json['class'] == process.finalizer.to_s
+          match &= json['args'][0] == process.pid
           if match
             destroyed += Resque.redis.lrem(q_key, 0, string).to_i
           end
         end
       end
       
-      Resque.redis.del(JobInfo.slaves(pid))
+      Resque.redis.del(ProcessInfo.slaves(pid))
       destroyed
     end
 
-    # Time metrics for measuring how long it takes map reduce to do a job
+    # Time metrics for measuring how long it takes map reduce to do a process
     #
     def self.set_request_time(pid)
-      FileSystem.set( JobInfo.requested_at(pid), Time.now.to_i )
+      FileSystem.set( ProcessInfo.requested_at(pid), Time.now.to_i )
     end
 
     def self.start_metrics(pid)
-      started  = JobInfo.started_at( pid )
+      started  = ProcessInfo.started_at( pid )
       FileSystem.set started, Time.now.to_i
     end
 
     def self.finish_metrics(pid)
-      started  = JobInfo.started_at( pid )
-      finished = JobInfo.finished_at( pid )
-      requested = JobInfo.requested_at( pid )
+      started  = ProcessInfo.started_at( pid )
+      finished = ProcessInfo.finished_at( pid )
+      requested = ProcessInfo.requested_at( pid )
       
       completion_time = Time.now.to_i
       
       FileSystem.set finished, completion_time
       time_to_complete = completion_time - FileSystem.get(started).to_i
       
-      recent_ttcs = JobInfo.recent_time_to_complete
+      recent_ttcs = ProcessInfo.recent_time_to_complete
       FileSystem.lpush( recent_ttcs , time_to_complete )
       FileSystem.ltrim( recent_ttcs , 0, 30 - 1)
       

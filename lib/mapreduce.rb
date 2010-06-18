@@ -17,8 +17,8 @@ module MapRedus
     def initialize; super("MapRedus Reducer: need to have reduce method defined");end
   end
 
-  class InvalidJob < NotImplementedError
-    def initialize; super("MapRedus Job Creation Failed: Specifications were not specified");end
+  class InvalidProcess < NotImplementedError
+    def initialize; super("MapRedus Process Creation Failed: Specifications were not specified");end
   end
 
   class RecoverableFail < StandardError
@@ -86,7 +86,7 @@ module MapRedus
 end
 
 require 'mapreduce/keys'
-require 'mapreduce/job'
+require 'mapreduce/process'
 require 'mapreduce/filesystem'
 require 'mapreduce/master'
 require 'mapreduce/mapper'

@@ -1,4 +1,4 @@
-class GetWordCount < MapRedus::Job
+class GetWordCount < MapRedus::Process
   def self.specification(data)
     {
       :mapper => WordCounter,
@@ -28,13 +28,13 @@ class Adder < MapRedus::Reducer
 end
 
 class ToHash < MapRedus::Finalizer
-  def self.finalize(job)
+  def self.finalize(process)
     result = {}
-    job.each_key_reduced_value do |key, value|
+    process.each_key_reduced_value do |key, value|
       result[key] = value.to_i
     end
-    job.save_result(MapRedus::Support.encode(result))
-    # job.delete
+    process.save_result(MapRedus::Support.encode(result))
+    process.delete
     result
   end
 end

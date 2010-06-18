@@ -1,6 +1,6 @@
 module MapRedus
   # Manages the book keeping of redis keys and redis usage
-  # provides the data storage for job information through redis
+  # provides the data storage for process information through redis
   # All interaction with redis should go through this class
   # 
   class FileSystem

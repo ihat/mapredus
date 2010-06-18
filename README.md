@@ -9,9 +9,9 @@ Using MapRedus
 MapRedus uses Resque to handle the processes that it runs,
 and redis to keep a store for the values/data produced.
 
-Workers for a MapRedus job, are Resque workers.  Refer to the
+Workers for a MapRedus process, are Resque workers.  Refer to the
 Resque worker documentation to see how to load the necessary
-environment for your worker to be able to run mapreduce jobs.
+environment for your worker to be able to run mapreduce processs.
 An example is also located in the tests.
 
 ### Mappers, Reducers, Finalizers
@@ -29,19 +29,19 @@ MapRedus needs a mapper, reducer, finalizer to be defined to run, for example:
 In this example, the mapper's map function calls yield to emit the key value pair
 for storage in redis.  The reducer's reduce function acts similarly.
 
-The finalizer runs whatever needs to be run when a job completes, an example:
+The finalizer runs whatever needs to be run when a process completes, an example:
 
     class Finalizer < MapRedus::Finalizer
-      def self.finalize(mapreduce_job_id)
+      def self.finalize(mapreduce_process_id)
         result = {}
-        each_key_value(mapreduce_job_id) do |key, value|
+        each_key_value(mapreduce_process_id) do |key, value|
           result[key] = value
         end
-        MapRedus::Job.save_result(MapReduce::Support.encode(result), mapreduce_job_id, "test:result")
+        MapRedus::Process.save_result(MapReduce::Support.encode(result), mapreduce_process_id, "test:result")
       end
     end
 
-Job ids and their information are destroyed in the delete call.  In this example
+Process ids and their information are destroyed in the delete call.  In this example
 the saved result is saved for as long as needed.
 
 Running Tests
@@ -65,8 +65,8 @@ TODO
 ----
 not necessarily in the given order
 
-* if a job fails we do what we are supposed to do
-  i.e. add a failure_hook which does something if your job fails
+* if a process fails we do what we are supposed to do
+  i.e. add a failure_hook which does something if your process fails
 
 * include functionality for a partitioner, input reader, combiner
 
@@ -88,13 +88,13 @@ not necessarily in the given order
 * if a perform operation fails then we need to have worker recover
 
 * make use of finish_metrics somewhere so that we can have statistics on how
-  long map reduce jobs take
+  long map reduce processs take
 
-* better tracking of work being assigned so we can know when a job is finished
+* better tracking of work being assigned so we can know when a process is finished
   or in progress and have a trigger to do things when shit finishes
   
     in resque there is functionality for an after hook
-    which performs something after your job does it's work
+    which performs something after your process does it's work
 
 * ensure reducers only do a fixed amount of work?
   See section 3.2 of paper. bookkeeping
@@ -106,7 +106,7 @@ not necessarily in the given order
     if a reducer starts working on a key after all maps have finished
     then when it is done the work on that key is finished forerver
     
-    this would imply a job finishes when all map tasks have finished
+    this would imply a process finishes when all map tasks have finished
     and all reduce tasks that start after the map tasks have finished
     
     if a reducer started before all map tasks were finished, then

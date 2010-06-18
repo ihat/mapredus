@@ -21,15 +21,15 @@ module MapRedus
     def self.map(data_chunk); raise InvalidMapper; end
     
     def self.perform(pid, data_chunk)
-      job = Job.open(pid)
-      return unless job
+      process = Process.open(pid)
+      return unless process
       
       map( data_chunk ) do |*key_value|
-        job.emit_intermediate(key_value)
+        process.emit_intermediate(key_value)
       end
     ensure
       Master.free_slave(pid)
-      job.next_state
+      process.next_state
     end
   end
 end

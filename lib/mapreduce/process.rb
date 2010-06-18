@@ -14,13 +14,13 @@ module MapRedus
   #     ordered : true_or_false   ## ensures ordering keys from the map output --> [ order, key, value ],
   #     synchronous : true_or_false   ## runs the process synchronously or not (generally used for testing)
   #     result_timeout : lenght of time a result is saved ## 3600 * 24
-  #     keyname : the location to the save the result of the job (cache location)
-  #     state : the current state of the job (shouldn't be set by the job and starts off as nil)
+  #     keyname : the location to the save the result of the process (cache location)
+  #     state : the current state of the process (shouldn't be set by the process and starts off as nil)
   #   }
   #
   # The user has the ability in subclassing this class to create extra features if needed
   # 
-  class Job
+  class Process
     # Public: Keep track of information that may show up as the redis json value
     #         This is so we know exactly what might show up in the json hash
     attr_reader :pid
@@ -68,8 +68,8 @@ module MapRedus
     end
 
     def save
-      FileSystem.sadd( JobInfo.jobs, @pid ) 
-      FileSystem.save( JobInfo.pid(@pid), to_json )
+      FileSystem.sadd( ProcessInfo.processes, @pid ) 
+      FileSystem.save( ProcessInfo.pid(@pid), to_json )
       self
     end
 
@@ -90,11 +90,11 @@ module MapRedus
     # Returns true as long as the master is not working.
     def delete(safe = true)
       return false if (safe && Master.working?(@pid))
-      FileSystem.keys("mapreduce:job:#{@pid}*").each do |k|
+      FileSystem.keys("mapreduce:process:#{@pid}*").each do |k|
         FileSystem.del(k)
       end        
-      FileSystem.srem(JobInfo.jobs, @pid)
-      FileSystem.set(JobInfo.jobs_count, 0) if( 0 == FileSystem.scard(JobInfo.jobs) )
+      FileSystem.srem(ProcessInfo.processes, @pid)
+      FileSystem.set(ProcessInfo.processes_count, 0) if( 0 == FileSystem.scard(ProcessInfo.processes) )
       true
     end
 
@@ -127,18 +127,18 @@ module MapRedus
     end
 
     # TODO:
-    # Should also have some notion of whether the job is completed or not
-    # since the master might not be working, but the job is not yet complete
+    # Should also have some notion of whether the process is completed or not
+    # since the master might not be working, but the process is not yet complete
     # so it is still running
     #
     def running?
       Master.working?(@pid)
     end
 
-    # Change the job state
+    # Change the process state
     #
     # Examples
-    #   job.next_state(pid)
+    #   process.next_state(pid)
     #
     def next_state
       if((not running?) and (not @synchronous))
@@ -151,33 +151,32 @@ module MapRedus
     end
 
     ### The following functions deal with keys/values produced during the
-    ### running of a job
+    ### running of a process
     
     # Emissions, when we get map/reduce results back we emit these 
     # to be stored in our file system (redis)
     #
-    # pid_or_job - The process or job id
     # key_value  - The key, value
     #
     # Examples
-    #   emit_intermediate(pid, [key, value])
+    #   emit_intermediate([key, value])
     #   # =>
     #
     # Returns the true on success.
     def emit_intermediate(key_value)
       if( not @ordered )
         key, value = key_value
-        FileSystem.sadd( JobInfo.keys(@pid), key )
+        FileSystem.sadd( ProcessInfo.keys(@pid), key )
         hashed_key = Support.hash(key)
-        FileSystem.rpush( JobInfo.map(@pid, hashed_key), value )
+        FileSystem.rpush( ProcessInfo.map(@pid, hashed_key), value )
       else
-        # if there's an order for the job then we should use a zset above
-        # ordered job's map emits [rank, key, value]
+        # if there's an order for the process then we should use a zset above
+        # ordered process's map emits [rank, key, value]
         #
         rank, key, value = key_value
-        FileSystem.zadd( JobInfo.keys(@pid), rank, key )
+        FileSystem.zadd( ProcessInfo.keys(@pid), rank, key )
         hashed_key = Support.hash(key)
-        FileSystem.rpush( JobInfo.map(@pid, hashed_key), value )
+        FileSystem.rpush( ProcessInfo.map(@pid, hashed_key), value )
       end
       raise "Key Collision: key:#{key}, #{key.class} => hashed key:#{hashed_key}" if key_collision?(hashed_key, key)
       true
@@ -185,37 +184,37 @@ module MapRedus
 
     def emit(key, reduce_val)
       hashed_key = Support.hash(key)
-      FileSystem.rpush( JobInfo.reduce(@pid, hashed_key), reduce_val )
+      FileSystem.rpush( ProcessInfo.reduce(@pid, hashed_key), reduce_val )
     end
 
     def key_collision?(hashed_key, key)
-      not ( FileSystem.setnx( JobInfo.hash_to_key(@pid, hashed_key), key ) ||
-            FileSystem.get( JobInfo.hash_to_key(@pid, hashed_key) ) == key.to_s )
+      not ( FileSystem.setnx( ProcessInfo.hash_to_key(@pid, hashed_key), key ) ||
+            FileSystem.get( ProcessInfo.hash_to_key(@pid, hashed_key) ) == key.to_s )
     end
 
     # Saves the result to the specified keyname
     #
     # Example
-    #   (map_reduce_job:result:KEYNAME)
+    #   (mapreduce:process:result:KEYNAME)
     # OR
-    #   job:pid:result
+    #   process:pid:result
     #
     # The client must ensure the the result will not be affected when to_s is applied
     # since redis stores all values as strings
     #
     # Returns true on success.
     def save_result(result)
-      FileSystem.save(JobInfo.result(@pid), result)
-      FileSystem.save(JobInfo.result_cache(@keyname), result, @result_timeout) if @keyname
+      FileSystem.save(ProcessInfo.result(@pid), result)
+      FileSystem.save(ProcessInfo.result_cache(@keyname), result, @result_timeout) if @keyname
       true
     end
 
     def get_saved_result
-      FileSystem.get( JobInfo.result_cache(@keyname) )
+      FileSystem.get( ProcessInfo.result_cache(@keyname) )
     end
 
     def delete_saved_result
-      FileSystem.del( JobInfo.result_cache(@keyname) )
+      FileSystem.del( ProcessInfo.result_cache(@keyname) )
     end
 
     # Keys that the map operation produced
@@ -229,25 +228,25 @@ module MapRedus
     # Returns the Keys.
     def map_keys
       if( not @ordered )
-        FileSystem.smembers( JobInfo.keys(@pid) )
+        FileSystem.smembers( ProcessInfo.keys(@pid) )
       else
-        FileSystem.zrange( JobInfo.keys(@pid), 0, -1 )
+        FileSystem.zrange( ProcessInfo.keys(@pid), 0, -1 )
       end
     end
 
     def num_values(key)
       hashed_key = Support.hash(key)
-      FileSystem.llen( JobInfo.map(@pid, hashed_key) )
+      FileSystem.llen( ProcessInfo.map(@pid, hashed_key) )
     end
 
     def map_values(key)
       hashed_key = Support.hash(key)
-      FileSystem.lrange( JobInfo.map(@pid, hashed_key), 0, -1 )
+      FileSystem.lrange( ProcessInfo.map(@pid, hashed_key), 0, -1 )
     end
     
     def reduce_values(key)
       hashed_key = Support.hash(key)
-      FileSystem.lrange( JobInfo.reduce(@pid, hashed_key), 0, -1 )
+      FileSystem.lrange( ProcessInfo.reduce(@pid, hashed_key), 0, -1 )
     end
 
     # Map and Reduce are strings naming the Mapper and Reducer
@@ -264,7 +263,7 @@ module MapRedus
     #   "MapRedus::Finalizer"
     # 
     # The options will go into the extra_data section of the spec and
-    # should be whatever extra information the job may need to have during running
+    # should be whatever extra information the process may need to have during running
     # 
     # Returns the new process id.
     def self.create( *args )
@@ -273,7 +272,7 @@ module MapRedus
       spec = specification( *args )
       return nil unless spec
 
-      Job.new(new_pid, spec).save
+      Process.new(new_pid, spec).save
     end
     
     def self.specification(*args)
@@ -289,12 +288,12 @@ module MapRedus
     end
 
     def self.info(pid)
-      FileSystem.keys(JobInfo.pid(pid) + "*")
+      FileSystem.keys(ProcessInfo.pid(pid) + "*")
     end
     
     def self.open(pid)
-      spec = Support.decode( FileSystem.get(JobInfo.pid(pid)) )
-      spec && Job.new( pid, spec )
+      spec = Support.decode( FileSystem.get(ProcessInfo.pid(pid)) )
+      spec && Process.new( pid, spec )
     end
 
     # Find out what map reduce processes are out there
@@ -304,7 +303,7 @@ module MapRedus
     #
     # Returns a list of the map reduce process ids
     def self.ps
-      FileSystem.smembers(JobInfo.jobs)
+      FileSystem.smembers(ProcessInfo.processes)
     end
 
     # Find out what map reduce processes are out there
@@ -314,10 +313,10 @@ module MapRedus
     #
     # Returns an avilable pid.
     def self.get_available_pid
-      FileSystem.incrby(JobInfo.jobs_count, 1 + rand(20)) 
+      FileSystem.incrby(ProcessInfo.processes_count, 1 + rand(20)) 
     end
     
-    # Remove redis keys associated with this job if the Master isn't working.
+    # Remove redis keys associated with this process if the Master isn't working.
     #
     # potentially is very expensive.
     #
@@ -336,8 +335,8 @@ module MapRedus
       ps.each do |pid|
         kill(pid)
       end
-      FileSystem.del(JobInfo.jobs)
-      FileSystem.del(JobInfo.jobs_count)
+      FileSystem.del(ProcessInfo.processes)
+      FileSystem.del(ProcessInfo.processes_count)
     end
   end
 end

@@ -18,17 +18,17 @@ module MapRedus
     #
     # TODO: Resque::AutoRetry might mess this up.
     def self.perform(pid, key)
-      job = Job.open(pid)
-      return unless job
+      process = Process.open(pid)
+      return unless process
       
-      reduce(job.map_values(key)) do |reduce_val|
-        job.emit( key, reduce_val )
+      reduce(process.map_values(key)) do |reduce_val|
+        process.emit( key, reduce_val )
       end
     rescue MapRedus::RecoverableFail
-      Master.enslave_later_reduce(job, key)
+      Master.enslave_later_reduce(process, key)
     ensure
       Master.free_slave(pid)
-      job.next_state
+      process.next_state
     end
   end
 end
