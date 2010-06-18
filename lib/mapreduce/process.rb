@@ -30,9 +30,9 @@ module MapRedus
     def initialize(pid, json_info)
       @pid = pid
       @json = json_info
-      @mapper = Support.class_get(json_helper(:mapper))
-      @reducer = Support.class_get(json_helper(:reducer))
-      @finalizer = Support.class_get(json_helper(:finalizer))
+      @mapper = Helper.class_get(json_helper(:mapper))
+      @reducer = Helper.class_get(json_helper(:reducer))
+      @finalizer = Helper.class_get(json_helper(:finalizer))
       @data = json_helper(:data)
       @ordered = json_helper(:ordered)
       @synchronous = json_helper(:synchronous)
@@ -64,7 +64,7 @@ module MapRedus
     end
 
     def to_json
-      Support.encode(to_hash)
+      Helper.encode(to_hash)
     end
 
     def save
@@ -167,7 +167,7 @@ module MapRedus
       if( not @ordered )
         key, value = key_value
         FileSystem.sadd( ProcessInfo.keys(@pid), key )
-        hashed_key = Support.hash(key)
+        hashed_key = Helper.hash(key)
         FileSystem.rpush( ProcessInfo.map(@pid, hashed_key), value )
       else
         # if there's an order for the process then we should use a zset above
@@ -175,7 +175,7 @@ module MapRedus
         #
         rank, key, value = key_value
         FileSystem.zadd( ProcessInfo.keys(@pid), rank, key )
-        hashed_key = Support.hash(key)
+        hashed_key = Helper.hash(key)
         FileSystem.rpush( ProcessInfo.map(@pid, hashed_key), value )
       end
       raise "Key Collision: key:#{key}, #{key.class} => hashed key:#{hashed_key}" if key_collision?(hashed_key, key)
@@ -183,7 +183,7 @@ module MapRedus
     end
 
     def emit(key, reduce_val)
-      hashed_key = Support.hash(key)
+      hashed_key = Helper.hash(key)
       FileSystem.rpush( ProcessInfo.reduce(@pid, hashed_key), reduce_val )
     end
 
@@ -210,11 +210,11 @@ module MapRedus
     end
 
     def get_saved_result
-      FileSystem.get( ProcessInfo.result_cache(@keyname) )
+      Process.get_saved_result(@keyname)
     end
 
     def delete_saved_result
-      FileSystem.del( ProcessInfo.result_cache(@keyname) )
+      Process.delete_saved_result(@keyname)
     end
 
     # Keys that the map operation produced
@@ -235,17 +235,17 @@ module MapRedus
     end
 
     def num_values(key)
-      hashed_key = Support.hash(key)
+      hashed_key = Helper.hash(key)
       FileSystem.llen( ProcessInfo.map(@pid, hashed_key) )
     end
 
     def map_values(key)
-      hashed_key = Support.hash(key)
+      hashed_key = Helper.hash(key)
       FileSystem.lrange( ProcessInfo.map(@pid, hashed_key), 0, -1 )
     end
     
     def reduce_values(key)
-      hashed_key = Support.hash(key)
+      hashed_key = Helper.hash(key)
       FileSystem.lrange( ProcessInfo.reduce(@pid, hashed_key), 0, -1 )
     end
 
@@ -276,14 +276,14 @@ module MapRedus
     end
     
     def self.specification(*args)
-      mapper_class, reducer_class, finalizer, data, ordered, opts = args
+      mapper_class, reducer_class, finalizer, data, ordered, keyname = args
       {
         :mapper => mapper_class,
         :reducer => reducer_class,
         :finalizer => finalizer,
         :data => data,
         :ordered => ordered,
-        :extra_data => opts
+        :keyname => keyname
       }
     end
 
@@ -292,7 +292,7 @@ module MapRedus
     end
     
     def self.open(pid)
-      spec = Support.decode( FileSystem.get(ProcessInfo.pid(pid)) )
+      spec = Helper.decode( FileSystem.get(ProcessInfo.pid(pid)) )
       spec && Process.new( pid, spec )
     end
 
@@ -314,6 +314,14 @@ module MapRedus
     # Returns an avilable pid.
     def self.get_available_pid
       FileSystem.incrby(ProcessInfo.processes_count, 1 + rand(20)) 
+    end
+
+    def self.get_saved_result(keyname)
+      FileSystem.get( ProcessInfo.result_cache(keyname) )
+    end
+
+    def self.delete_saved_result(keyname)
+      FileSystem.del( ProcessInfo.result_cache(keyname) )
     end
     
     # Remove redis keys associated with this process if the Master isn't working.

@@ -42,7 +42,7 @@ module MapRedus
   def register_reducer(klass); end;
   def register_mapper(klass); end;
 
-  class Support
+  class Helper
     # resque helpers defines
     #   redis
     #   encode
@@ -92,3 +92,4 @@ require 'mapreduce/master'
 require 'mapreduce/mapper'
 require 'mapreduce/reducer'
 require 'mapreduce/finalizer'
+require 'mapreduce/support'
