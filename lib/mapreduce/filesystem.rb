@@ -12,13 +12,9 @@ module MapRedus
     #
     # Examples
     #   FileSystem.save( key, value ) 
-    def self.save(key, value)
+    def self.save(key, value, time = nil)
       storage.set(key, value)
-    end
-
-    def self.save_temporary(key, value, time = 3600)
-      save(key, value)
-      storage.expire(key, time)
+      storage.expire(key, time) if time
     end
 
     def self.method_missing(method, *args, &block)
@@ -33,15 +29,15 @@ module MapRedus
     #
     # Returns true if there's a lock
     def self.has_lock?(keyname)
-      MapRedus.has_redis_lock?( RedisKey.result_custom_key(keyname) ) 
+      MapRedus.has_redis_lock?( RedisKey.result_cache(keyname) ) 
     end
     
     def self.acquire_lock(keyname)
-      MapRedus.acquire_redis_lock_nonblock( RedisKey.result_custom_key(keyname), 60 * 60 )
+      MapRedus.acquire_redis_lock_nonblock( RedisKey.result_cache(keyname), 60 * 60 )
     end
     
     def self.release_lock(keyname)
-      MapRedus.release_redis_lock( RedisKey.result_custom_key(keyname) )
+      MapRedus.release_redis_lock( RedisKey.result_cache(keyname) )
     end
   end
 end
