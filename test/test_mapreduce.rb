@@ -32,13 +32,7 @@ it all seemed quite natural);"])
     GetWordCount.run(@pid, synchronously = false)
     Resque::Worker.new("*").work(0)
 
-    tries = 10
-    result = nil
-    while (tries-=1)>0 and not (result = GetWordCount.get_saved_result("test:result")) do
-      puts tries
-      sleep 1
-    end
-
+    result = GetWordCount.get_saved_result("test:result")
     mr_result = MapRedus::Support.decode(result)
     assert_equal @word_count, mr_result
   end
