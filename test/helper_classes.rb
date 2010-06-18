@@ -33,7 +33,7 @@ class ToHash < MapRedus::Finalizer
     process.each_key_reduced_value do |key, value|
       result[key] = value.to_i
     end
-    process.save_result(MapRedus::Support.encode(result))
+    process.save_result(MapRedus::Helper.encode(result))
     process.delete
     result
   end

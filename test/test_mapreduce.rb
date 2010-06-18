@@ -25,7 +25,7 @@ it all seemed quite natural);"])
     ##
     @process.run(synchronously = true)
     result = @process.get_saved_result
-    mr_result = MapRedus::Support.decode(result)
+    mr_result = MapRedus::Helper.decode(result)
     assert_equal @word_count, mr_result
   end
 
@@ -34,7 +34,7 @@ it all seemed quite natural);"])
     Resque::Worker.new("*").work(0)
 
     result = @process.get_saved_result
-    mr_result = MapRedus::Support.decode(result)
+    mr_result = MapRedus::Helper.decode(result)
     assert_equal @word_count, mr_result
   end
 end
