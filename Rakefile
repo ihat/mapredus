@@ -5,7 +5,7 @@ begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
     gem.name = "mapredus"
-    gem.summary = %Q{mapreduce initial}
+    gem.summary = %Q{mapredus initial}
     gem.description = %Q{simple mapreduce framework using redis and resque}
     gem.email = "john@doloreslabs.com"
     gem.homepage = "http://github.com/dolores/mapredus"
@@ -25,7 +25,7 @@ Rake::RDocTask.new do |rdoc|
   version = File.exist?('VERSION') ? File.read('VERSION') : ""
 
   rdoc.rdoc_dir = 'rdoc'
-  rdoc.title = "mapreduce #{version}"
+  rdoc.title = "mapredus #{version}"
   rdoc.rdoc_files.include('README*')
   rdoc.rdoc_files.include('lib/**/*.rb')
 end

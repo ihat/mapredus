@@ -85,13 +85,13 @@ module MapRedus
   end 
 end
 
-require 'mapreduce/keys'
-require 'mapreduce/process'
-require 'mapreduce/filesystem'
-require 'mapreduce/master'
-require 'mapreduce/mapper'
-require 'mapreduce/reducer'
-require 'mapreduce/finalizer'
-require 'mapreduce/support'
-require 'mapreduce/outputter'
-require 'mapreduce/inputter'
+require 'mapredus/keys'
+require 'mapredus/process'
+require 'mapredus/filesystem'
+require 'mapredus/master'
+require 'mapredus/mapper'
+require 'mapredus/reducer'
+require 'mapredus/finalizer'
+require 'mapredus/support'
+require 'mapredus/outputter'
+require 'mapredus/inputter'

@@ -4,7 +4,7 @@ require 'test/unit'
 dir = File.dirname(__FILE__)
 $LOAD_PATH.unshift(File.join(dir, '..', 'lib'))
 $LOAD_PATH.unshift(dir)
-require 'mapreduce'
+require 'mapredus'
 
 ##
 # test/spec/mini 3
