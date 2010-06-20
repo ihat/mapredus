@@ -4,20 +4,22 @@ module MapRedus
     class DuplicateProcessDefinitionError < MapRedusRunnerError ; end
 
     module Runner; end
+    def mapreduce; Runner; end
     
     module ClassMethods
-      def mapreduce_process( process_name, mapper, reducer, finalizer, ordered, result_store )
-        raise DuplicateProcessDefintionError if Support::Runner.methods.include? process_name.to_s
+      def mapreduce_process( process_name, mapper, reducer, finalizer, outputter, result_store, opts = {})
+        runner_self = (class << Support::Runner; self; end)
+        raise DuplicateProcessDefintionError if runner_self.methods.include? process_name.to_s
 
         runner_self = (class << Support::Runner; self; end)
 
         runner_self.send( :define_method, process_name.to_s ) do |data|
-          process = MapRedus::Process.create(mapper, reducer, finalizer, data, ordered, result_store)
+          process = MapRedus::Process.create(mapper, reducer, finalizer, outputter, result_store, data)
           process.run
         end
 
         runner_self.send( :define_method, "#{process_name.to_s}_result" ) do
-            MapRedus::Process.get_saved_result(result_store)
+          outputter.decode(MapRedus::Process.get_saved_result(result_store))
         end
       end
     end

@@ -64,3 +64,7 @@ require 'resque/failure/redis'
 Resque::Failure.backend = Resque::Failure::Redis
 
 require 'helper_classes'
+
+def work_off
+  Resque::Worker.new("*").work(0)
+end

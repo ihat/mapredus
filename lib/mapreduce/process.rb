@@ -23,8 +23,10 @@ module MapRedus
   class Process
     # Public: Keep track of information that may show up as the redis json value
     #         This is so we know exactly what might show up in the json hash
-    attr_reader :pid
-    attr_accessor :mapper, :reducer, :finalizer, :data, :ordered, :synchronous, :result_timeout, :keyname, :state
+    READERS = [:pid]
+    ATTRS = [:mapper, :reducer, :finalizer, :outputter, :data, :ordered, :synchronous, :result_timeout, :keyname, :state]
+    READERS.each { |r| attr_reader r }
+    ATTRS.each { |a| attr_accessor a }
 
     DEFAULT_TIME = 3600 * 24
     def initialize(pid, json_info)
@@ -39,6 +41,8 @@ module MapRedus
       @result_timeout = json_helper(:result_timeout) || DEFAULT_TIME
       @keyname = json_helper(:keyname)
       @state = json_helper(:state)
+      @outputter = json_helper(:outputter)
+      @outputter = @outputter ? Helper.class_get(@outputter) : MapRedus::Outputter
     end
 
     def json_helper(key)
@@ -48,19 +52,10 @@ module MapRedus
     def to_s; to_json; end
 
     def to_hash
-      {
-        :pid => @pid,
-        :mapper => @mapper,
-        :reducer => @reducer,
-        :finalizer => @finalizer,
-        :data => @data,
-        :ordered => @ordered,
-        :extra_data => @extra_data,
-        :synchronous => @synchronous,
-        :result_timeout => @result_timeout,
-        :keyname => @keyname,
-        :state => @state
-      }
+      (ATTRS + READERS).inject({}) do |h, attr|
+        h[attr] = send(attr)
+        h 
+      end
     end
 
     def to_json
@@ -204,13 +199,14 @@ module MapRedus
     #
     # Returns true on success.
     def save_result(result)
-      FileSystem.save(ProcessInfo.result(@pid), result)
-      FileSystem.save(ProcessInfo.result_cache(@keyname), result, @result_timeout) if @keyname
+      res = @outputter.encode(result)
+      FileSystem.save(ProcessInfo.result(@pid), res)
+      FileSystem.save(ProcessInfo.result_cache(@keyname), res, @result_timeout) if @keyname
       true
     end
 
     def get_saved_result
-      Process.get_saved_result(@keyname)
+      @outputter.decode(Process.get_saved_result(@keyname))
     end
 
     def delete_saved_result
@@ -276,14 +272,14 @@ module MapRedus
     end
     
     def self.specification(*args)
-      mapper_class, reducer_class, finalizer, data, ordered, keyname = args
+      mapper_class, reducer_class, finalizer, outputter, keyname, data = args
       {
         :mapper => mapper_class,
         :reducer => reducer_class,
         :finalizer => finalizer,
-        :data => data,
-        :ordered => ordered,
-        :keyname => keyname
+        :outputter => outputter,
+        :keyname => keyname,
+        :data => data
       }
     end
 

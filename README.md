@@ -1,7 +1,7 @@
 MapRedus
 =========
 
-Simple MapRedus type framework using redis and resque.
+Simple MapReduce type framework using redis and resque.
 
 Using MapRedus
 ---------------
@@ -32,12 +32,12 @@ for storage in redis.  The reducer's reduce function acts similarly.
 The finalizer runs whatever needs to be run when a process completes, an example:
 
     class Finalizer < MapRedus::Finalizer
-      def self.finalize(mapreduce_process_id)
+      def self.finalize(process)
         result = {}
-        each_key_value(mapreduce_process_id) do |key, value|
+        process.each_key_value do |key, value|
           result[key] = value
         end
-        MapRedus::Process.save_result(MapReduce::Support.encode(result), mapreduce_process_id, "test:result")
+        process.save_result
       end
     end
 

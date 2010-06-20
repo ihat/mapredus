@@ -4,12 +4,12 @@ require 'rake'
 begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
-    gem.name = "mapreduce"
+    gem.name = "mapredus"
     gem.summary = %Q{mapreduce initial}
     gem.description = %Q{simple mapreduce framework using redis and resque}
     gem.email = "john@doloreslabs.com"
-    gem.homepage = "http://github.com/sandbox/mapreduce"
-    gem.authors = ["John Le"]
+    gem.homepage = "http://github.com/dolores/mapredus"
+    gem.authors = ["John Le", "Brian O'Rourke"]
     gem.files = Dir['lib/**/*.rb']
     gem.add_dependency "redis", ">= 1.0.4"
     gem.add_dependency "resque", ">= 1.8"

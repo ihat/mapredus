@@ -16,25 +16,104 @@ it all seemed quite natural);"])
 
   test "001 mapreduce process is created successfully" do
     process = GetWordCount.open(@process.pid)
+
     assert_equal WordCounter, process.mapper
+    assert_equal Adder, process.reducer
+    assert_equal ToHash, process.finalizer
+    assert_equal MapRedus::JsonOutputter, process.outputter
   end
 
-  test "002 test running a map reduce process synchronously" do
+  test "002 running a map reduce process synchronously" do
     ##
     ## In general map reduce shouldn't be running operations synchronously
     ##
     @process.run(synchronously = true)
-    result = @process.get_saved_result
-    mr_result = MapRedus::Helper.decode(result)
-    assert_equal @word_count, mr_result
+    assert_equal @word_count, @process.get_saved_result
   end
 
-  test "003 test running a map reduce process asynchronously" do
+  test "003 running a map reduce process asynchronously" do
     @process.run(synchronously = false)
-    Resque::Worker.new("*").work(0)
+    assert_nil @process.get_saved_result
+    work_off
 
     result = @process.get_saved_result
-    mr_result = MapRedus::Helper.decode(result)
-    assert_equal @word_count, mr_result
+    assert_equal @word_count, @process.get_saved_result
   end
+
+  test "000 running a map reduce process with reduce recoverable fail" do
+    assert_equal true, false
+  end
+end
+
+context "MapRedus Support Runner" do
+  setup do
+    MapRedus.redis.flushall
+    @doc = Document.new
+  end
+
+  test "000 running a process within a class" do
+    @doc.run_word_count
+    work_off
+    result = @doc.get_word_count
+    assert_equal @doc.word_answer, @doc.get_word_count
+  end
+
+  test "000 running a second process within a class" do
+    @doc.run_char_count
+    work_off
+    result = @doc.get_char_count
+    assert_equal @doc.char_answer, @doc.get_char_count
+  end
+end
+
+context "MapRedus Process" do
+  setup do
+    "some shit here"
+  end
+
+  test "000 process save"
+  test "000 process update"
+  test "000 process delete"
+  test "000 process kill"
+  test "000 process kill all"
+  test "000 next state responds correctly"
+  test "000 process emit_intermediate"
+  test "000 process emit"
+  test "000 process save result"
+  test "000 delete saved result"
+  test "000 correct map keys produced"
+  test "000 correct map/reduce values produced"
+end
+
+context "MapRedus Master" do
+  setup do
+    "some shit here"
+  end
+
+  test "000 handles workers correctly"
+  test "000 redundant multiple workers handled correctly"
+end
+
+context "MapRedus Mapper" do
+  setup do
+    "some shit here"
+  end
+
+  test "000 maps correctly"
+end
+
+context "MapRedus Reducer" do
+  setup do
+    "some shit here"
+  end
+
+  test "000 reduce recoverable fail"
+end
+
+context "MapRedus Finalizer" do
+  setup do
+    "some shit here"
+  end
+  
+  test "000 finalizes correctly saves"
 end
