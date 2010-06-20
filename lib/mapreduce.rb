@@ -31,7 +31,7 @@ module MapRedus
   # Caution: defines redis, which is also defined in RedisSupport
   # 
   class QueueProcess
-    def self.queue; :mapreduce; end
+    def self.queue; :mapredus; end
     def self.perform(*args); raise InvalidProcess; end
   end
 
