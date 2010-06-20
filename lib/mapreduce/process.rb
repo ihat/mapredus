@@ -85,7 +85,7 @@ module MapRedus
     # Returns true as long as the master is not working.
     def delete(safe = true)
       return false if (safe && Master.working?(@pid))
-      FileSystem.keys("mapreduce:process:#{@pid}*").each do |k|
+      FileSystem.keys("mapredus:process:#{@pid}*").each do |k|
         FileSystem.del(k)
       end        
       FileSystem.srem(ProcessInfo.processes, @pid)

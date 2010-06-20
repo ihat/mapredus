@@ -88,7 +88,7 @@ module MapRedus
     end
 
     # The current default q (QUEUE) that we push on to is
-    #   :mapreduce
+    #   :mapredus
     #
     def self.enslave( process, q, klass, *args )
       FileSystem.rpush(ProcessInfo.slaves(process.pid), 1)
