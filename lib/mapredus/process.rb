@@ -40,7 +40,7 @@ module MapRedus
       @synchronous = json_helper(:synchronous)
       @result_timeout = json_helper(:result_timeout) || DEFAULT_TIME
       @keyname = json_helper(:keyname)
-      @state = json_helper(:state)
+      @state = json_helper(:state) || NOT_STARTED
       @outputter = json_helper(:outputter)
       @outputter = @outputter ? Helper.class_get(@outputter) : MapRedus::Outputter
     end
@@ -135,10 +135,12 @@ module MapRedus
     end
 
     # Change the process state
+    # if the process is not running and is not synchronous
     #
     # Examples
     #   process.next_state(pid)
     #
+    # returns the state that the process switched to (or stays the same)
     def next_state
       if((not running?) and (not @synchronous))
         new_state = STATE_MACHINE[self.state]
@@ -335,7 +337,8 @@ module MapRedus
     # Returns true on success.
     def self.kill(pid)
       num_killed = Master.emancipate(pid)
-      Process.open(pid).delete
+      proc = Process.open(pid)
+      proc.delete if proc
       num_killed
     end
 

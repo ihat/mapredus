@@ -124,8 +124,51 @@ context "MapRedus Process" do
     assert_equal 0, Resque.size(:mapredus)
   end
   
-  test "000 process kill all"
-  test "000 next state responds correctly"
+  test "000 process kill all" do
+    proc_1 = GetWordCount.create( Document::TEST )
+    proc_2 = GetWordCount.create( Document::TEST )
+    proc_3 = GetWordCount.create( Document::TEST )
+    proc_4 = GetWordCount.create( Document::TEST )
+    proc_5 = GetWordCount.create( Document::TEST )
+    proc_6 = GetWordCount.create( Document::TEST )
+
+    proc_1.run
+    proc_2.run
+    proc_3.run
+
+    worker = Resque::Worker.new("*")
+    6.times do 
+      worker.perform(worker.reserve)
+    end
+    
+    proc_4.run
+    proc_5.run
+    proc_6.run
+    
+    6.times do
+      worker.perform(worker.reserve)
+    end
+
+    MapRedus::Process.kill_all
+    assert_equal 0, Resque.size(:mapredus)
+    assert Resque.peek(:mapredus, 0, -1).empty?
+  end
+
+  test "000 next state responds correctly" do
+    assert_equal @process.state, MapRedus::NOT_STARTED
+    @process.next_state
+    assert_equal @process.state , MapRedus::MAP_IN_PROGRESS
+    work_off
+    @process.next_state
+    assert_equal @process.state , MapRedus::REDUCE_IN_PROGRESS
+    work_off
+    @process.next_state
+    assert_equal @process.state , MapRedus::FINALIZER_IN_PROGRESS
+    work_off
+    @process.next_state
+    assert_equal @process.state , MapRedus::COMPLETE
+  end
+
   test "000 process emit_intermediate"
   test "000 process emit"
   test "000 process save result"

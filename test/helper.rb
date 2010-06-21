@@ -56,7 +56,7 @@ at_exit do
 end
 
 puts "Starting redis for testing at localhost:9736..."
-`redis-server #{dir}/redis-test.conf`
+`/Users/john/main/code/redis/redis-server #{dir}/redis-test.conf`
 
 MapRedus.redis = 'localhost:9736:0'
 Resque.redis = MapRedus.redis

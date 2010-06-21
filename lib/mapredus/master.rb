@@ -141,14 +141,17 @@ module MapRedus
           match |= json['class'] == process.mapper.to_s
           match |= json['class'] == process.reducer.to_s
           match |= json['class'] == process.finalizer.to_s
-          match &= json['args'][0] == process.pid
+          match &= json['args'].first.to_s == process.pid.to_s
           if match
             destroyed += Resque.redis.lrem(q_key, 0, string).to_i
           end
         end
       end
-      
-      Resque.redis.del(ProcessInfo.slaves(pid))
+
+      #
+      # our slave information is kept track of on file and not in Resque
+      #
+      FileSystem.del(ProcessInfo.slaves(pid))
       destroyed
     end
 
