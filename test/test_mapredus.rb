@@ -123,7 +123,7 @@ context "MapRedus Process" do
     MapRedus::Process.kill(@process.pid)
     assert_equal 0, Resque.size(:mapredus)
   end
-  
+
   test "000 process kill all" do
     proc_1 = GetWordCount.create( Document::TEST )
     proc_2 = GetWordCount.create( Document::TEST )
@@ -169,12 +169,53 @@ context "MapRedus Process" do
     assert_equal @process.state , MapRedus::COMPLETE
   end
 
-  test "000 process emit_intermediate"
-  test "000 process emit"
-  test "000 process save result"
-  test "000 delete saved result"
-  test "000 correct map keys produced"
-  test "000 correct map/reduce values produced"
+  test "000 process emit_intermediate unordered" do
+    @process.emit_intermediate("hell", "yeah")
+    @process.each_key_nonreduced_value do |key, value|
+      assert_equal "hell", key
+      assert_equal "yeah", value
+    end
+  end
+
+  test "000 process emit_intermediate ordered" do
+    @process.update(:ordered => true)
+    @process.emit_intermediate(1, "number", "one")
+    @process.emit_intermediate(2, "place", "two")
+    res = []
+    @process.each_key_nonreduced_value do |key, value|
+      res << [key, value]
+    end
+    
+    assert_equal [["number", "one"], ["place", "two"]], res
+  end
+
+  test "000 process emit" do 
+    @process.emit("something", "reduced")
+    @process.each_key_reduced_value do |key, rv|
+      assert_equal "something", key
+      assert_equal "reduced", rv
+    end
+  end
+
+  test "000 process save result" do
+    @process.save_result("{\"answer\":\"value_json\"}")
+    assert_equal( ({ "answer" => "value_json" }), @process.get_saved_result )
+  end
+
+  test "000 delete saved result" do
+    @process.save_result("{\"answer\":\"value_json\"}")
+    @process.delete_saved_result
+    assert_nil @process.get_saved_result
+  end
+
+  test "000 correct map keys produced in an emit_intermediate" do
+    @process.emit_intermediate("map key 1", "value")
+    @process.emit_intermediate("map key 1", "value")
+    @process.emit_intermediate("map key 2", "value")
+    assert_equal ["map key 1", "map key 2"], @process.map_keys.map { |k| k }.sort
+  end
+  
+  test "000 correct map/reduce values produced in an emit"
 end
 
 context "MapRedus Master" do
@@ -206,6 +247,6 @@ context "MapRedus Finalizer" do
   setup do
     "some shit here"
   end
-  
+
   test "000 finalizes correctly saves"
 end
