@@ -134,7 +134,7 @@ module MapRedus
       destroyed = 0
       qs = [queue, process.mapper.queue, process.reducer.queue, process.finalizer.queue].uniq
       qs.each do |q|
-        q_key = "resque:queue:#{q}"
+        q_key = "queue:#{q}"
         Resque.redis.lrange(q_key, 0, -1).each do | string |
           json   = Helper.decode(string)
           match  = json['class'] == "MapRedus::Master"

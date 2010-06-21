@@ -128,13 +128,15 @@ class Document
   mapreduce_process :recoverable_test, Something, SomeReducer, SomeFinalizer, MapRedus::JsonOutputter, "store:recover:result", :synchronous => true
   
   attr_reader :words
+
+  TEST = ["He pointed his finger in friendly jest and went over to the parapet",
+          "laughing to himself. Stephen Dedalus stepped up, followed him wearily",
+          "halfway and sat down on the edge of the gunrest, watching him still as",
+          "he propped his mirror on the parapet, dipped the brush in the bowl and", 
+          "lathered cheeks and neck."]
   
   def initialize
-    @words = ["He pointed his finger in friendly jest and went over to the parapet",
-              "laughing to himself. Stephen Dedalus stepped up, followed him wearily",
-              "halfway and sat down on the edge of the gunrest, watching him still as",
-              "he propped his mirror on the parapet, dipped the brush in the bowl and", 
-              "lathered cheeks and neck."]
+    @words = TEST
   end
 
   def word_answer

@@ -14,7 +14,7 @@ it all seemed quite natural);"])
     @word_count = {"natural"=>1, "over"=>1, "say"=>1, "it"=>4, "think"=>1, "all"=>1, "but"=>1, "of"=>1, "quite"=>1, "much"=>1, "alice"=>1, "very"=>2, "be"=>1, "shall"=>1, "oh"=>2, "hear"=>1, "out"=>1, "time"=>1, "way"=>1, "nothing"=>1, "seemed"=>1, "occurred"=>1, "she"=>2, "itself"=>1, "to"=>4, "in"=>1, "wondered"=>1, "ought"=>1, "rabbit"=>1, "the"=>3, "nor"=>1, "so"=>2, "thought"=>1, "at"=>2, "have"=>1, "when"=>1, "remarkable"=>1, "there"=>1, "afterwards"=>1, "i"=>1, "dear"=>2, "did"=>1, "that"=>2, "was"=>1, "this"=>1, "her"=>1, "late"=>1}
   end
 
-  test "001 mapreduce process is created successfully" do
+  test "000 mapreduce process is created successfully" do
     process = GetWordCount.open(@process.pid)
 
     assert_equal WordCounter, process.mapper
@@ -23,7 +23,7 @@ it all seemed quite natural);"])
     assert_equal MapRedus::JsonOutputter, process.outputter
   end
 
-  test "002 running a map reduce process synchronously" do
+  test "000 running a map reduce process synchronously" do
     ##
     ## In general map reduce shouldn't be running operations synchronously
     ##
@@ -31,7 +31,7 @@ it all seemed quite natural);"])
     assert_equal @word_count, @process.get_saved_result
   end
 
-  test "003 running a map reduce process asynchronously" do
+  test "000 running a map reduce process asynchronously" do
     @process.run(synchronously = false)
     assert_nil @process.get_saved_result
     work_off
@@ -79,17 +79,51 @@ end
 context "MapRedus Process" do
   setup do
     MapRedus.redis.flushall
-    @doc = Document.new
+    @process = GetWordCount.create( Document::TEST )
   end
 
-  test "000 process save" do 
+  test "000 process save" do
+    @process.mapper = CharCounter
+    @process.synchronous = true
+    @process.save
+
+    @process = MapRedus::Process.open(@process.pid)
+    
+    assert_equal @process.mapper, CharCounter
+    assert_equal @process.synchronous, true
   end
   
   test "000 process update" do
+    @process.update(:mapper => CharCounter, :ordered => true)
+    @process = MapRedus::Process.open(@process.pid)
+    
+    assert_equal @process.mapper, CharCounter
+    assert_equal @process.ordered, true
   end
   
-  test "000 process delete"
-  test "000 process kill"
+  test "000 process delete" do
+    @process.delete
+    
+    proc = MapRedus::Process.open(@process.pid)
+    assert_nil proc
+  end
+  
+  test "000 process kill" do
+    @process.run
+    MapRedus::Process.kill(@process.pid)
+    assert_equal 0, Resque.size(:mapredus)
+  end
+
+  test "000 process kill halfway" do
+    @process.run
+
+    worker = Resque::Worker.new("*")
+    worker.perform(worker.reserve)   # do some work
+    
+    MapRedus::Process.kill(@process.pid)
+    assert_equal 0, Resque.size(:mapredus)
+  end
+  
   test "000 process kill all"
   test "000 next state responds correctly"
   test "000 process emit_intermediate"

@@ -78,8 +78,12 @@ module MapRedus
     # This will not delete if the master is working
     # It can't get ahold of the files to shred while the master is working
     #
+    # if safe is set to false, this will delete all the redis stores associated
+    # with this process, but will not kill the process from the queue, if it is
+    # on the queue.  The process operations will fail to work when its data is deleted 
+    #
     # Examples
-    #   delete(pid)
+    #   delete(safe)
     #   # => true or false
     #
     # Returns true as long as the master is not working.
@@ -325,13 +329,13 @@ module MapRedus
     # potentially is very expensive.
     #
     # Example
-    #   Master::kill(pid)
+    #   Process::kill(pid)
     #   # => true
     #
     # Returns true on success.
     def self.kill(pid)
       num_killed = Master.emancipate(pid)
-      delete(pid)
+      Process.open(pid).delete
       num_killed
     end
 
