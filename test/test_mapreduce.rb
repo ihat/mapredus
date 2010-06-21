@@ -39,10 +39,6 @@ it all seemed quite natural);"])
     result = @process.get_saved_result
     assert_equal @word_count, @process.get_saved_result
   end
-
-  test "000 running a map reduce process with reduce recoverable fail" do
-    assert_equal true, false
-  end
 end
 
 context "MapRedus Support Runner" do
@@ -54,25 +50,44 @@ context "MapRedus Support Runner" do
   test "000 running a process within a class" do
     @doc.run_word_count
     work_off
-    result = @doc.get_word_count
     assert_equal @doc.word_answer, @doc.get_word_count
   end
 
   test "000 running a second process within a class" do
     @doc.run_char_count
     work_off
-    result = @doc.get_char_count
     assert_equal @doc.char_answer, @doc.get_char_count
+  end
+
+  test "000 separate class with the same mapreduce process name" do
+    @job = Job.new
+    @job.mapreduce.word_count(@doc.words)
+    work_off
+    assert_equal @doc.word_answer, @job.mapreduce.word_count_result
+  end
+
+  test "000 running a map reduce process with reduce recoverable fail" do
+    @doc.mapreduce.recoverable_test(@doc.words)
+    work_off
+
+    # p x = Resque.info[:failed]
+    # p Resque::Failure.all(0, x)
+    assert_equal @doc.recoverable_answer, @doc.mapreduce.recoverable_test_result
   end
 end
 
 context "MapRedus Process" do
   setup do
-    "some shit here"
+    MapRedus.redis.flushall
+    @doc = Document.new
   end
 
-  test "000 process save"
-  test "000 process update"
+  test "000 process save" do 
+  end
+  
+  test "000 process update" do
+  end
+  
   test "000 process delete"
   test "000 process kill"
   test "000 process kill all"

@@ -12,6 +12,13 @@ module MapRedus
   # to define how to deal with this restriction.
   #
   class Reducer < QueueProcess
+    #
+    # After a recoverable fail this describes how much time we shall wait before
+    # readding the reducer back on to the queue.
+    #
+    DEFAULT_WAIT = 10 # seconds
+    def self.wait; DEFAULT_WAIT; end
+    
     def self.reduce(values); raise InvalidReducer; end
     
     # Doesn't handle redundant workers and fault tolerance

@@ -1,6 +1,7 @@
 require 'redis'
 require 'redis_support'
 require 'resque'
+require 'resque_scheduler'
 
 module MapRedus
   include RedisSupport

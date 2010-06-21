@@ -7,7 +7,7 @@ module MapRedus
   # Holds the current map reduce processes that are either running or which still have data lying around
   #
   redis_key :processes, "mapredus:processes"
-  redis_key :processes_count, "mapredus:processes:count"  ## TODO: use this
+  redis_key :processes_count, "mapredus:processes:count"
   
   # Holds the information (mapper, reducer, etc.) in json format for a map reduce process with pid PID
   #

@@ -12,6 +12,20 @@ class GetWordCount < MapRedus::Process
   end
 end
 
+class GetCharCount < MapRedus::Process
+  def self.specification(data, store)
+    {
+      :mapper => CharCounter,
+      :reducer => Adder,
+      :finalizer => ToHash,
+      :data => data,
+      :outputter => MapRedus::JsonOutputter,
+      :ordered => false,
+      :keyname => store
+    }
+  end
+end
+
 class WordCounter < MapRedus::Mapper
   def self.partition_size; 1; end
   def self.map(map_data)
@@ -37,7 +51,6 @@ class Adder < MapRedus::Reducer
   end
 end
 
-
 class ToHash < MapRedus::Finalizer
   def self.finalize(process)
     result = {}
@@ -51,25 +64,71 @@ class ToHash < MapRedus::Finalizer
 end
 
 class Something < MapRedus::Mapper
-  def self.map(values)
+  include MapRedus::Support
+  
+  def self.partition_size; 10; end
+  def self.map(data)
+    count = 0
+    WordCounter.map(data) do |word, one|
+      result_loc = "intermediate:result:store:#{word}:#{count}"
+      intermediate = GetCharCount.create([word], result_loc)
+      intermediate.run
+      count += 1
+      yield(word, "#{intermediate.outputter.to_s}|#{result_loc}")
+    end
   end
 end
 
-class SomethingElse < MapRedus::Mapper
-end
-
 class SomeReducer < MapRedus::Reducer
+  # for testing purposes only, we want to add the reducer back onto the queue
+  # instantly!
+  def self.wait; 30; end
+
+  def self.reduce(intermediate_result_keys)
+    accum = Hash.new(0)
+    intermediate_result_keys.each do |key|
+      outputter, result_key = key.split("|")
+      result = MapRedus::Process.get_saved_result(result_key)
+      if(result)
+        MapRedus::Helper.class_get(outputter).decode(result).each do |k, v|
+          accum[k] += v.to_i
+        end
+      else
+        raise MapRedus::RecoverableFail
+      end
+    end
+
+    yield(accum.to_json)
+  end
 end
 
-class SomeSuperReduce < MapRedus::Reducer
+class SomeFinalizer < MapRedus::Finalizer
+  def self.finalize(process)
+    result = {}
+    process.each_key_reduced_value do |key, value|
+      result[key] = process.outputter.decode(value)
+    end
+    process.save_result(result)
+    process.delete
+    result
+  end
 end
+
+class Job
+  include MapRedus::Support
+  mapreduce_process :word_count, WordCounter, Adder, ToHash, MapRedus::JsonOutputter, "job:store:result"
+end
+
 
 class Document
   include MapRedus::Support
 
   mapreduce_process :word_count, WordCounter, Adder, ToHash, MapRedus::JsonOutputter, "store:result"
   mapreduce_process :char_count, CharCounter, Adder, ToHash, MapRedus::JsonOutputter, "store:char:result"
-
+  mapreduce_process :recoverable_test, Something, SomeReducer, SomeFinalizer, MapRedus::JsonOutputter, "store:recover:result", :synchronous => true
+  
+  attr_reader :words
+  
   def initialize
     @words = ["He pointed his finger in friendly jest and went over to the parapet",
               "laughing to himself. Stephen Dedalus stepped up, followed him wearily",
@@ -84,6 +143,10 @@ class Document
 
   def char_answer
     {" "=>50, "k"=>2, "v"=>1, "a"=>17, ","=>3, "l"=>12, "w"=>7, "b"=>2, "m"=>4, "c"=>3, "."=>2, "n"=>18, "y"=>3, "D"=>1, "d"=>15, "o"=>13, "e"=>34, "p"=>14, "f"=>6, "g"=>6, "r"=>13, "h"=>19, "H"=>1, "S"=>1, "s"=>12, "i"=>16, "t"=>20, "j"=>1, "u"=>5}
+  end
+
+  def recoverable_answer
+    {"over"=>{"v"=>1, "o"=>1, "e"=>1, "r"=>1}, "gunrest"=>{"n"=>1, "e"=>1, "r"=>1, "g"=>1, "s"=>1, "t"=>1, "u"=>1}, "and"=>{"a"=>4, "n"=>4, "d"=>4}, "him"=>{"m"=>2, "h"=>2, "i"=>2}, "of"=>{"o"=>1, "f"=>1}, "still"=>{"l"=>2, "s"=>1, "i"=>1, "t"=>1}, "finger"=>{"n"=>1, "e"=>1, "f"=>1, "r"=>1, "g"=>1, "i"=>1}, "friendly"=>{"l"=>1, "y"=>1, "n"=>1, "d"=>1, "e"=>1, "f"=>1, "r"=>1, "i"=>1}, "went"=>{"w"=>1, "n"=>1, "e"=>1, "t"=>1}, "himself"=>{"l"=>1, "m"=>1, "e"=>1, "f"=>1, "s"=>1, "h"=>1, "i"=>1}, "bowl"=>{"l"=>1, "w"=>1, "b"=>1, "o"=>1}, "propped"=>{"d"=>1, "o"=>1, "e"=>1, "p"=>3, "r"=>1}, "down"=>{"w"=>1, "n"=>1, "o"=>1, "d"=>1}, "dipped"=>{"d"=>2, "e"=>1, "p"=>2, "i"=>1}, "cheeks"=>{"k"=>1, "c"=>1, "e"=>2, "s"=>1, "h"=>1}, "in"=>{"n"=>2, "i"=>2}, "to"=>{"o"=>2, "t"=>2}, "dedalus"=>{"l"=>1, "a"=>1, "d"=>2, "e"=>1, "s"=>1, "u"=>1}, "stepped"=>{"d"=>1, "p"=>2, "e"=>2, "s"=>1, "t"=>1}, "up"=>{"p"=>1, "u"=>1}, "wearily"=>{"l"=>1, "a"=>1, "w"=>1, "y"=>1, "e"=>1, "r"=>1, "i"=>1}, "pointed"=>{"n"=>1, "d"=>1, "o"=>1, "e"=>1, "p"=>1, "t"=>1, "i"=>1}, "the"=>{"e"=>6, "h"=>6, "t"=>6}, "sat"=>{"a"=>1, "s"=>1, "t"=>1}, "he"=>{"e"=>2, "h"=>2}, "his"=>{"s"=>2, "h"=>2, "i"=>2}, "laughing"=>{"a"=>1, "l"=>1, "n"=>1, "g"=>2, "h"=>1, "i"=>1, "u"=>1}, "stephen"=>{"n"=>1, "p"=>1, "e"=>2, "h"=>1, "s"=>1, "t"=>1}, "followed"=>{"w"=>1, "l"=>2, "d"=>1, "o"=>2, "e"=>1, "f"=>1}, "as"=>{"a"=>1, "s"=>1}, "jest"=>{"e"=>1, "s"=>1, "t"=>1, "j"=>1}, "brush"=>{"b"=>1, "r"=>1, "h"=>1, "s"=>1, "u"=>1}, "parapet"=>{"a"=>4, "e"=>2, "p"=>4, "r"=>2, "t"=>2}, "on"=>{"n"=>2, "o"=>2}, "edge"=>{"d"=>1, "e"=>2, "g"=>1}, "mirror"=>{"m"=>1, "o"=>1, "r"=>3, "i"=>1}, "neck"=>{"k"=>1, "c"=>1, "n"=>1, "e"=>1}, "halfway"=>{"w"=>1, "l"=>1, "a"=>2, "y"=>1, "f"=>1, "h"=>1}, "watching"=>{"a"=>1, "w"=>1, "n"=>1, "c"=>1, "g"=>1, "h"=>1, "i"=>1, "t"=>1}, "lathered"=>{"a"=>1, "l"=>1, "d"=>1, "e"=>2, "r"=>1, "h"=>1, "t"=>1}}
   end
 
   def run_word_count

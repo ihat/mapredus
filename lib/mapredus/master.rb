@@ -7,8 +7,6 @@ module MapRedus
   # the slaves will always be doing work.
   #
   class Master < QueueProcess
-    DEFAULT_WAIT = 10 # seconds
-    
     # Check whether there are still workers working on process PID's processes
     #
     # In synchronous condition, master is always working since nothing is going to
@@ -69,44 +67,54 @@ module MapRedus
     end
 
     def self.enslave_finalizer( process )
-      enslave( process, process.finalizer.queue, process.finalizer, process.pid )
+      enslave( process, process.finalizer, process.pid )
     end
 
     # Have these to match what the Mapper/Reducer perform function expects to see as arguments
     #
     # though instead of process the perform function will receive the pid
     def self.enslave_map(process, data_chunk)
-      enslave( process, process.mapper.queue, process.mapper, process.pid, data_chunk )
+      enslave( process, process.mapper, process.pid, data_chunk )
     end
 
     def self.enslave_reduce(process, key)
-      enslave( process, process.reducer.queue, process.reducer, process.pid, key )
+      enslave( process, process.reducer, process.pid, key )
     end
 
     def self.enslave_later_reduce(process, key)
-      enslave_later( DEFAULT_WAIT, process, process.reducer.queue, process.reducer, process.pid, key )
+      enslave_later( process.reducer.wait, process, process.reducer, process.pid, key )
     end
 
-    # The current default q (QUEUE) that we push on to is
+    # The current default (QUEUE) that we push on to is
     #   :mapredus
     #
-    def self.enslave( process, q, klass, *args )
+    def self.enslave( process, klass, *args )
       FileSystem.rpush(ProcessInfo.slaves(process.pid), 1)
       
       if( process.synchronous )
         klass.perform(*args)
       else
-        Resque.push( q, { :class => klass.to_s, :args => args } )
+        Resque.push( klass.queue, { :class => klass.to_s, :args => args } )
       end
     end
 
-    def self.enslave_later( delay_in_seconds, process, q, klass, *args)
+    def self.enslave_later( delay_in_seconds, process, klass, *args)
       FileSystem.rpush(ProcessInfo.slaves(process.pid), 1)
 
       if( process.synchronous )
         klass.perform(*args)
       else
-        Resque.enqueue_at(Time.now + delay_in_seconds, q, klass, *args)
+        #
+        # TODO: I cannot get enqueue_in to work with my tests
+        #       there seems to be a silent failure somewhere
+        #       in the tests such that it never calls the function
+        #       and the queue gets emptied
+        #
+        # Resque.enqueue_in(delay_in_seconds, klass, *args)
+        
+        ##
+        ## Temporary, immediately just push process back onto the resque queue
+        Resque.push( klass.queue, { :class => klass.to_s, :args => args } )
       end
     end
 
