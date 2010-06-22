@@ -58,7 +58,7 @@ end
 puts "Starting redis for testing at localhost:9736..."
 `/Users/john/main/code/redis/redis-server #{dir}/redis-test.conf`
 
-MapRedus.redis = 'localhost:9736:0'
+RedisSupport.redis = 'localhost:9736:0'
 Resque.redis = MapRedus.redis
 require 'resque/failure/redis'
 Resque::Failure.backend = Resque::Failure::Redis

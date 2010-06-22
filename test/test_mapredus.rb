@@ -197,13 +197,10 @@ context "MapRedus Process" do
     end
   end
 
-  test "000 process save result" do
-    @process.save_result("{\"answer\":\"value_json\"}")
+  test "000 process save and delete result" do
+    @process.save_result({"answer" => "value_json"})
     assert_equal( ({ "answer" => "value_json" }), @process.get_saved_result )
-  end
 
-  test "000 delete saved result" do
-    @process.save_result("{\"answer\":\"value_json\"}")
     @process.delete_saved_result
     assert_nil @process.get_saved_result
   end
