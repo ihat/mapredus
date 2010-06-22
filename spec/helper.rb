@@ -13,32 +13,30 @@ require 'mapredus'
 #
 if !system("which redis-server")
   puts '', "** can't find `redis-server` in your path"
-  puts "** try running `sudo rake install`"
   abort ''
 end
 
 #
 # start our own redis when the tests start,
-# kill it when they end
+# kill it when they end (redis is run as a daemon)
 #
+puts "Starting redis for testing at localhost:9736..."
+`redis-server #{dir}/redis-test.conf`
+
 at_exit do
-  next if $!
-
-  if defined?(MiniTest)
-    exit_code = MiniTest::Unit.new.run(ARGV)
-  else
-    exit_code = Test::Unit::AutoRunner.run
-  end
-
+  #
+  # hope that no other processes have redis-test in the name...
+  # TODO: fixme
+  #
   pid = `ps -A -o pid,command | grep [r]edis-test`.split(" ")[0]
   puts "Killing test redis server..."
   `rm -f #{dir}/dump.rdb`
   Process.kill("KILL", pid.to_i)
 end
 
-puts "Starting redis for testing at localhost:9736..."
-`redis-server #{dir}/redis-test.conf`
-
+#
+# Set the redis server
+#
 MapRedus.redis = 'localhost:9736:0'
 Resque.redis = MapRedus.redis
 require 'resque/failure/redis'
