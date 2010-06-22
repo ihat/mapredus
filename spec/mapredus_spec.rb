@@ -16,7 +16,7 @@ it all seemed quite natural);"])
   it "creates a process successfully" do
     process = GetWordCount.open(@process.pid)
 
-    process.mapper.should == WordCount
+    process.mapper.should == WordCounter
     process.reducer.should == Adder
     process.finalizer.should == ToHash
     process.outputter.should == MapRedus::JsonOutputter
@@ -32,7 +32,7 @@ it all seemed quite natural);"])
 
   it "runs a map reduce process asynchronously" do
     @process.run(synchronously = false)
-    @process.get_saved_result.should_be nil
+    @process.get_saved_result.should == nil
     work_off
 
     result = @process.get_saved_result
@@ -89,7 +89,7 @@ describe "MapRedus Process" do
     @process = MapRedus::Process.open(@process.pid)
     
     @process.mapper.should == CharCounter
-    @process.synchronous.should_be true
+    @process.synchronous.should == true
   end
   
   it "updates a process" do
@@ -97,14 +97,14 @@ describe "MapRedus Process" do
     @process = MapRedus::Process.open(@process.pid)
     
     @process.mapper.should == CharCounter
-    @process.ordered.should_be true
+    @process.ordered.should == true
   end
   
   it "deletes a process" do
     @process.delete
     
     proc = MapRedus::Process.open(@process.pid)
-    proc.should_be nil
+    proc.should == nil
   end
   
   it "kills a process" do
@@ -150,26 +150,75 @@ describe "MapRedus Process" do
 
     MapRedus::Process.kill_all
     Resque.size(:mapredus).should == 0
-    Resque.peek(:mapredus, 0, -1).empty?.should_be true
+    Resque.peek(:mapredus, 0, -1).empty?.should == true
   end
 
   it "responses to next state correctly" do
     @process.state.should == MapRedus::NOT_STARTED
     @process.next_state
     @process.state.should == MapRedus::MAP_IN_PROGRESS
+    work_off
+
     @process.next_state
     @process.state.should == MapRedus::REDUCE_IN_PROGRESS
+    work_off
+
     @process.next_state
     @process.state.should == MapRedus::FINALIZER_IN_PROGRESS
+    work_off
+    
     @process.next_state
     @process.state.should == MapRedus::COMPLETE
   end
 
-  it "emit_intermediate successfully"
-  it "emit successfully"
-  it "saves a result"
-  it "deletes a saved result"
-  it "produces the correct map keys"
+  it "emit_intermediate unordered successfully" do
+    @process.emit_intermediate("hell", "yeah")
+    result = []
+    @process.each_key_nonreduced_value do |key, value|
+      result << [key, value]
+    end
+
+    result.should == [["hell", "yeah"]]
+  end
+
+  it "emit_intermediate on an ordered process" do
+    @process.update(:ordered => true)
+    @process.emit_intermediate(1, "number", "one")
+    @process.emit_intermediate(2, "place", "two")
+    res = []
+    @process.each_key_nonreduced_value do |key, value|
+      res << [key, value]
+    end
+    
+    res.should == [["number", "one"], ["place", "two"]]
+  end
+
+  it "emit successfully" do
+    @process.emit_intermediate("something", "non_reduced_value")
+    @process.emit("something", "reduced")
+    result = []
+    @process.each_key_reduced_value do |key, rv|
+      result << [key, rv]
+    end
+    result.should == [["something", "reduced"]]
+  end
+
+  it "saves and deletes JSON results" do
+    @process.save_result({"answer" => "value_json"})
+    @process.get_saved_result.should == { "answer" => "value_json" }
+
+    @process.delete_saved_result
+    @process.get_saved_result.should == nil
+  end
+
+  it "produces the correct map keys" do
+    @process.emit_intermediate("map key 1", "value")
+    @process.emit_intermediate("map key 1", "value")
+    @process.emit_intermediate("map key 2", "value")
+
+    @process.map_keys.map { |k| k }.sort.should == ["map key 1", "map key 2"]
+  end
+
   it "produces the correct map/reduce values"
 end
 

@@ -1,5 +1,6 @@
 require 'rubygems'
 require 'rake'
+require 'spec/rake/spectask'
 
 begin
   require 'jeweler'
@@ -31,14 +32,13 @@ Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_files.include('lib/**/*.rb')
 end
 
-require 'rake/testtask'
-Rake::TestTask.new(:test) do |test|
-  test.libs << 'lib' << 'test'
-  test.pattern = 'test/**/test_*.rb'
-  test.verbose = true
+Spec::Rake::SpecTask.new(:spec) do |t|
+  t.spec_files = FileList['spec/*.rb']
+  t.spec_opts = ["--color", "--format", "specdoc", 
+                 "-f", "o:log/spec_profile.txt", 
+                 "-f", "e:log/spec_failing.txt"]
 end
 
-task :test => :check_dependencies
+task :spec => :check_dependencies
 
-task :default => :test
-
+task :default => :spec
