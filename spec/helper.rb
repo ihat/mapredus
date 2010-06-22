@@ -1,8 +1,6 @@
 require 'rubygems'
 require 'spec'
 
-puts "clearly does not work, does not load the redis server.."
-
 dir = File.dirname(__FILE__)
 $LOAD_PATH.unshift(File.join(dir, '..', 'lib'))
 $LOAD_PATH.unshift(dir)
