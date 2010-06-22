@@ -25,7 +25,7 @@ module MapRedus
       return unless process
       
       map( data_chunk ) do |*key_value|
-        process.emit_intermediate(key_value)
+        process.emit_intermediate(*key_value)
       end
     ensure
       Master.free_slave(pid)

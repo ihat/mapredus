@@ -3,6 +3,21 @@ MapRedus
 
 Simple MapReduce type framework using redis and resque.
 
+Overview
+--------
+
+This is an experimental implementation of MapReduce using Ruby for
+process definition, Resque for work execution, and Redis for data
+storage.
+
+Goals:
+ * simple M/R-style programming for existing Ruby projects
+ * low cost of entry (no need for a dedicated cluster)
+
+If you are looking for a high-performance MapReduce implementation
+that can meet your big data needs, try Hadoop.
+
+
 Using MapRedus
 ---------------
 
@@ -95,6 +110,10 @@ not necessarily in the given order
   
     in resque there is functionality for an after hook
     which performs something after your process does it's work
+
+    might also check out the resque-status plugin for a cheap and
+    easy way to plug status and completion-rate into existing resque
+    jobs.
 
 * ensure reducers only do a fixed amount of work?
   See section 3.2 of paper. bookkeeping

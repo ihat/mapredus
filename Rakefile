@@ -13,6 +13,7 @@ begin
     gem.files = Dir['lib/**/*.rb']
     gem.add_dependency "redis", ">= 1.0.4"
     gem.add_dependency "resque", ">= 1.8"
+    gem.add_dependency "resque-scheduler"
     gem.add_dependency "redis_support", ">= 0"
   end
   Jeweler::GemcutterTasks.new

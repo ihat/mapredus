@@ -40,7 +40,7 @@ module MapRedus
       @synchronous = json_helper(:synchronous)
       @result_timeout = json_helper(:result_timeout) || DEFAULT_TIME
       @keyname = json_helper(:keyname)
-      @state = json_helper(:state)
+      @state = json_helper(:state) || NOT_STARTED
       @outputter = json_helper(:outputter)
       @outputter = @outputter ? Helper.class_get(@outputter) : MapRedus::Outputter
     end
@@ -100,7 +100,7 @@ module MapRedus
     # Iterates through the key, values
     # 
     # Example
-    #   each_key_value(pid)
+    #   each_key_reduced_value(pid)
     # 
     # Returns nothing.
     def each_key_reduced_value
@@ -111,6 +111,12 @@ module MapRedus
       end
     end
 
+    # Iterates through the key, values
+    # 
+    # Example
+    #   each_key_nonreduced_value(pid)
+    # 
+    # Returns nothing.
     def each_key_nonreduced_value
       map_keys.each do |key|
         map_values(key).each do |value|
@@ -135,10 +141,12 @@ module MapRedus
     end
 
     # Change the process state
+    # if the process is not running and is not synchronous
     #
     # Examples
     #   process.next_state(pid)
     #
+    # returns the state that the process switched to (or stays the same)
     def next_state
       if((not running?) and (not @synchronous))
         new_state = STATE_MACHINE[self.state]
@@ -158,11 +166,12 @@ module MapRedus
     # key_value  - The key, value
     #
     # Examples
-    #   emit_intermediate([key, value])
+    #   emit_intermediate(key, value)
     #   # =>
+    #   emit_intermediate(rank, key, value)
     #
     # Returns the true on success.
-    def emit_intermediate(key_value)
+    def emit_intermediate(*key_value)
       if( not @ordered )
         key, value = key_value
         FileSystem.sadd( ProcessInfo.keys(@pid), key )
@@ -219,10 +228,8 @@ module MapRedus
 
     # Keys that the map operation produced
     #
-    # pid  - The process id
-    #
     # Examples
-    #   map_keys(pid)
+    #   map_keys
     #   # =>
     #
     # Returns the Keys.
@@ -335,7 +342,8 @@ module MapRedus
     # Returns true on success.
     def self.kill(pid)
       num_killed = Master.emancipate(pid)
-      Process.open(pid).delete
+      proc = Process.open(pid)
+      proc.delete if proc
       num_killed
     end
 

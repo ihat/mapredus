@@ -123,15 +123,96 @@ context "MapRedus Process" do
     MapRedus::Process.kill(@process.pid)
     assert_equal 0, Resque.size(:mapredus)
   end
+
+  test "000 process kill all" do
+    proc_1 = GetWordCount.create( Document::TEST )
+    proc_2 = GetWordCount.create( Document::TEST )
+    proc_3 = GetWordCount.create( Document::TEST )
+    proc_4 = GetWordCount.create( Document::TEST )
+    proc_5 = GetWordCount.create( Document::TEST )
+    proc_6 = GetWordCount.create( Document::TEST )
+
+    proc_1.run
+    proc_2.run
+    proc_3.run
+
+    worker = Resque::Worker.new("*")
+    6.times do 
+      worker.perform(worker.reserve)
+    end
+    
+    proc_4.run
+    proc_5.run
+    proc_6.run
+    
+    6.times do
+      worker.perform(worker.reserve)
+    end
+
+    MapRedus::Process.kill_all
+    assert_equal 0, Resque.size(:mapredus)
+    assert Resque.peek(:mapredus, 0, -1).empty?
+  end
+
+  test "000 next state responds correctly" do
+    assert_equal @process.state, MapRedus::NOT_STARTED
+    @process.next_state
+    assert_equal @process.state , MapRedus::MAP_IN_PROGRESS
+    work_off
+    @process.next_state
+    assert_equal @process.state , MapRedus::REDUCE_IN_PROGRESS
+    work_off
+    @process.next_state
+    assert_equal @process.state , MapRedus::FINALIZER_IN_PROGRESS
+    work_off
+    @process.next_state
+    assert_equal @process.state , MapRedus::COMPLETE
+  end
+
+  test "000 process emit_intermediate unordered" do
+    @process.emit_intermediate("hell", "yeah")
+    @process.each_key_nonreduced_value do |key, value|
+      assert_equal "hell", key
+      assert_equal "yeah", value
+    end
+  end
+
+  test "000 process emit_intermediate ordered" do
+    @process.update(:ordered => true)
+    @process.emit_intermediate(1, "number", "one")
+    @process.emit_intermediate(2, "place", "two")
+    res = []
+    @process.each_key_nonreduced_value do |key, value|
+      res << [key, value]
+    end
+    
+    assert_equal [["number", "one"], ["place", "two"]], res
+  end
+
+  test "000 process emit" do 
+    @process.emit("something", "reduced")
+    @process.each_key_reduced_value do |key, rv|
+      assert_equal "something", key
+      assert_equal "reduced", rv
+    end
+  end
+
+  test "000 process save and delete result" do
+    @process.save_result({"answer" => "value_json"})
+    assert_equal( ({ "answer" => "value_json" }), @process.get_saved_result )
+
+    @process.delete_saved_result
+    assert_nil @process.get_saved_result
+  end
+
+  test "000 correct map keys produced in an emit_intermediate" do
+    @process.emit_intermediate("map key 1", "value")
+    @process.emit_intermediate("map key 1", "value")
+    @process.emit_intermediate("map key 2", "value")
+    assert_equal ["map key 1", "map key 2"], @process.map_keys.map { |k| k }.sort
+  end
   
-  test "000 process kill all"
-  test "000 next state responds correctly"
-  test "000 process emit_intermediate"
-  test "000 process emit"
-  test "000 process save result"
-  test "000 delete saved result"
-  test "000 correct map keys produced"
-  test "000 correct map/reduce values produced"
+  test "000 correct map/reduce values produced in an emit"
 end
 
 context "MapRedus Master" do
@@ -163,6 +244,6 @@ context "MapRedus Finalizer" do
   setup do
     "some shit here"
   end
-  
+
   test "000 finalizes correctly saves"
 end
