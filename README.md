@@ -29,6 +29,29 @@ Resque worker documentation to see how to load the necessary
 environment for your worker to be able to run mapreduce processs.
 An example is also located in the tests.
 
+### Attaching a mapreduce process to a class
+Often times you'll want to define a mapreduce process that does operation on
+data within a class.  Here is how this looks.  There is also an example of this
+in the tests.
+
+    class Job
+      mapreduce_process :word_count, WordCounter, Adder, ToHash, MapRedus::JsonOutputter, "job:store:result"
+    end
+
+The mapreduce_process needs a name, mapper, reducer, finalizer, outputter, and
+key to store the result.  The operation would then be run on a job calling the following.
+
+    job = Job.new
+    job.mapreduce.word_count( data )
+
+The data specifies the data on which this operation is to run.  We are currently
+working on a way to allow the result_store_key to change depending on class properties.
+For instance in the above example, if the Job class had an id attribute, we may want to 
+store the final mapreduce result in "job:store:result:#{id}".  We'll also be looking
+to add a Inputter (maybe equivalent to Hadoops InputStream?) which defines how you want
+process the input data to provide it to the map.  The inputter will be a queue process
+to be processed by the resque queue.
+
 ### Mappers, Reducers, Finalizers
 MapRedus needs a mapper, reducer, finalizer to be defined to run, for example:
 
@@ -52,23 +75,46 @@ The finalizer runs whatever needs to be run when a process completes, an example
         process.each_key_value do |key, value|
           result[key] = value
         end
-        process.save_result
+        process.save_result(result)
       end
     end
 
-Process ids and their information are destroyed in the delete call.  In this example
-the saved result is saved for as long as needed.
+If you are dealing with a lot of keys and values, you'll likely not want to store your
+data in this manner; this is just an example of what you can do.
+In this example the saved result is saved for as long as needed.  Often times will want to encode the
+saved result in a way (since it is being saved to redis as a string).  This is
+where we'd define an Outputter maybe in this case in the hash format, "key:value\tkey:value".
+
+    class HashOutputter < MapRedus::Outputter
+      def encode(o)
+        encoding = o.map do |k,v| 
+          [k,v].join(":")
+        end
+        encoding.join("\t")
+      end
+      def decode(o)
+        o.split("\t").inject({}) do |m, kv|
+          k, v = kv.split(":")
+          m[k]=v
+          m
+        end
+      end
+    end
+
+This is likely not what you would want to do but is an example of what can be done.
+The default Outputter makes no changes to original result.
 
 Running Tests
 -------------
-Run the tests which tests the word counter example
-* rake test
+Run the tests which tests the word counter example and some other tests
+* bundle exec rake
 
 Requirements
 ------------
 Redis
 RedisSupport
 Resque
+Resque-scheduler
 
 ### Notes
     Instead of calling "emit_intermediate"/"emit" in your map/reduce to
@@ -89,6 +135,9 @@ not necessarily in the given order
   the command line.  Defining any arbitrary mapper and reducer.
 
 * implement redundant workers (workers doing the same work in case one of them fails)
+
+* if a reducer runs a recoverable fail, then make sure that an attempt to reenslave
+  the worker is delayed by some fixed interval
 
 * edit emit for when we have multiple workers doing the same reduce
   (redundant workers for fault tolerance might need to change

@@ -149,8 +149,7 @@ describe "MapRedus Process" do
     end
 
     MapRedus::Process.kill_all
-    Resque.size(:mapredus).should == 0
-    Resque.peek(:mapredus, 0, -1).empty?.should == true
+    Resque.peek(:mapredus, 0, -1) == []
   end
 
   it "responses to next state correctly" do
@@ -216,42 +215,82 @@ describe "MapRedus Process" do
     @process.emit_intermediate("map key 1", "value")
     @process.emit_intermediate("map key 2", "value")
 
-    @process.map_keys.map { |k| k }.sort.should == ["map key 1", "map key 2"]
+    @process.map_keys.sort.should == ["map key 1", "map key 2"]
   end
 
-  it "produces the correct map/reduce values"
+  it "produces the correct map/reduce values" do
+    @process.run 
+    work_off
+    expected_answer = Document.new.word_answer
+    @process.map_keys.sort.should == expected_answer.keys.sort
+
+    @process.each_key_reduced_value do |key, reduced_value|
+      reduced_value.to_i.should == expected_answer[key]
+      @process.map_values(key).should == ["1"] * reduced_value.to_i
+    end
+  end
 end
 
 describe "MapRedus Master" do
   before(:each) do
-    "some shit here"
+    MapRedus.redis.flushall
+    @process = GetWordCount.create(Document::TEST)
   end
 
-  it "handles slaves (enslaving) correctly"
-  it "handles slaves (freeing) correctly"
+  it "handles slaves (enslaving) correctly" do
+    MapRedus::Master.enslave(@process, WordCounter, @process.pid, ["some data"])
+    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid, ["some data"]], "class"=>"WordCounter"}]
+    MapRedus::Master.slaves(@process.pid).should == ["1"]
+  end
+
+  it "handles slaves (freeing) correctly" do
+    MapRedus::Master.enslave(@process, WordCounter, @process.pid, ["some data"])
+    MapRedus::Master.enslave(@process, WordCounter, @process.pid, ["more data"])
+
+    MapRedus::Master.slaves(@process.pid).should == ["1", "1"]
+
+    MapRedus::Master.free_slave(@process.pid)
+    MapRedus::Master.free_slave(@process.pid)
+    MapRedus::Master.slaves(@process.pid).should == []
+  end
+
   it "handles redundant multiple workers (same output regardless of how many workers complete)"
 end
 
-describe "MapRedus Mapper" do
+describe "MapRedus Mapper/Reducer/Finalizer" do
   before(:each) do
-    "some shit here"
+    MapRedus.redis.flushall
+    @process = GetWordCount.create(Document::TEST)
   end
 
-  it "runs a map correctly proceeding to the next state"
-end
-
-describe "MapRedus Reducer" do
-  before(:each) do
-    "some shit here"
+  it "runs a map correctly proceeding to the next state" do
+    @process.update(:state => MapRedus::MAP_IN_PROGRESS)
+    @process.state.should == MapRedus::MAP_IN_PROGRESS
+    @process.mapper.perform(@process.pid, ["data"])
+    @process.reload
+    @process.state.should == MapRedus::REDUCE_IN_PROGRESS
+    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid, "data"], "class"=>"Adder"}]
   end
 
-  it "runs a reduce correctly proceeding to the correct next state"
-end
-
-describe "MapRedus Finalizer" do
-  before(:each) do
-    "some shit here"
+  it "runs a reduce correctly proceeding to the correct next state" do
+    @process.update(:state => MapRedus::REDUCE_IN_PROGRESS)
+    @process.state.should == MapRedus::REDUCE_IN_PROGRESS
+    @process.emit_intermediate("data", "1")
+    @process.reducer.perform(@process.pid, "data")
+    @process.reload
+    @process.state.should == MapRedus::FINALIZER_IN_PROGRESS
+    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid], "class"=>"ToHash"}]
   end
-  
-  it "should test that the finalizer correctly saves"
+
+  it "should test that the finalizer correctly saves" do
+    @process.update(:state => MapRedus::FINALIZER_IN_PROGRESS)
+    @process.state.should == MapRedus::FINALIZER_IN_PROGRESS
+    @process.emit_intermediate("data", "1")
+    @process.emit("data", "1")
+    @process.finalizer.perform(@process.pid)
+    @process.reload
+    @process.state.should == MapRedus::COMPLETE
+    Resque.peek(:mapredus, 0, -1).should == []
+    @process.get_saved_result.should == {"data" => 1}
+  end
 end

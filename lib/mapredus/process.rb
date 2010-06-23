@@ -31,6 +31,10 @@ module MapRedus
     DEFAULT_TIME = 3600 * 24
     def initialize(pid, json_info)
       @pid = pid
+      read(json_info)
+    end
+
+    def read(json_info)
       @json = json_info
       @mapper = Helper.class_get(json_helper(:mapper))
       @reducer = Helper.class_get(json_helper(:reducer))
@@ -73,6 +77,11 @@ module MapRedus
         send("#{attr}=", val)
       end
       save
+    end
+
+    def reload
+      read(Helper.decode(FileSystem.get(ProcessInfo.pid(@pid))))
+      self
     end
 
     # This will not delete if the master is working
@@ -246,11 +255,26 @@ module MapRedus
       FileSystem.llen( ProcessInfo.map(@pid, hashed_key) )
     end
 
+    # values that the map operation produced, for a key
+    #
+    # Examples
+    #   map_values(key)
+    #   # =>
+    #
+    # Returns the values.
     def map_values(key)
       hashed_key = Helper.hash(key)
       FileSystem.lrange( ProcessInfo.map(@pid, hashed_key), 0, -1 )
     end
-    
+
+
+    # values that the reduce operation produced, for a key
+    #
+    # Examples
+    #   reduce_values(key)
+    #   # =>
+    #
+    # Returns the values.
     def reduce_values(key)
       hashed_key = Helper.hash(key)
       FileSystem.lrange( ProcessInfo.reduce(@pid, hashed_key), 0, -1 )

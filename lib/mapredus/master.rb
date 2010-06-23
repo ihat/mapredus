@@ -118,6 +118,10 @@ module MapRedus
       end
     end
 
+    def self.slaves(pid)
+      FileSystem.lrange(ProcessInfo.slaves(pid), 0, -1)
+    end
+
     def self.free_slave(pid)
       FileSystem.lpop(ProcessInfo.slaves(pid))
     end
