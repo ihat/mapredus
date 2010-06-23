@@ -11,8 +11,9 @@ process definition, Resque for work execution, and Redis for data
 storage.
 
 Goals:
- * simple M/R-style programming for existing Ruby projects
- * low cost of entry (no need for a dedicated cluster)
+
+* simple M/R-style programming for existing Ruby projects
+* low cost of entry (no need for a dedicated cluster)
 
 If you are looking for a high-performance MapReduce implementation
 that can meet your big data needs, try Hadoop.
@@ -48,7 +49,7 @@ The data specifies the data on which this operation is to run.  We are currently
 working on a way to allow the result_store_key to change depending on class properties.
 For instance in the above example, if the Job class had an id attribute, we may want to 
 store the final mapreduce result in "job:store:result:#{id}".  We'll also be looking
-to add a Inputter (maybe equivalent to Hadoops InputStream?) which defines how you want
+to add a Inputter (maybe equivalent to Hadoops InputStream?) which defines how you want to
 process the input data to provide it to the map.  The inputter will be a queue process
 to be processed by the resque queue.
 
@@ -107,7 +108,7 @@ The default Outputter makes no changes to original result.
 Running Tests
 -------------
 Run the tests which tests the word counter example and some other tests
-* bundle exec rake
+    bundle exec rake
 
 Requirements
 ------------
