@@ -209,7 +209,7 @@ module MapRedus
             FileSystem.get( ProcessInfo.hash_to_key(@pid, hashed_key) ) == key.to_s )
     end
 
-    # Saves the result to the specified keyname
+    # Saves the result to the specified keyname, using the specified outputter
     #
     # Example
     #   (mapreduce:process:result:KEYNAME)
@@ -347,6 +347,10 @@ module MapRedus
       FileSystem.incrby(ProcessInfo.processes_count, 1 + rand(20)) 
     end
 
+    # Given a keyname, get the result from the process.
+    #
+    # Examples
+    #   Filesystem uses 
     def self.get_saved_result(keyname)
       FileSystem.get( ProcessInfo.result_cache(keyname) )
     end
