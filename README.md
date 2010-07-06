@@ -15,7 +15,7 @@ Goals:
 * simple M/R-style programming for existing Ruby projects
 * low cost of entry (no need for a dedicated cluster)
 
-If you are looking for a high-performance MapReduce implementation
+if you are looking for a high-performance MapReduce implementation
 that can meet your big data needs, try Hadoop.
 
 
@@ -25,14 +25,14 @@ Using MapRedus
 MapRedus uses Resque to handle the processes that it runs, and redis
 to keep a store for the values/data produced.
 
-Workers for a MapRedus process, are Resque workers.  Refer to the
+Workers for a MapRedus process are Resque workers.  Refer to the
 Resque worker documentation to see how to load the necessary
 environment for your worker to be able to run mapreduce processs.  An
 example is also located in the tests.
 
 ### Attaching a mapreduce process to a class
-Often times you'll want to define a mapreduce process that does
-operation on data within a class.  Here is how this looks.  There is
+You will often want to define a mapreduce process that does some 
+operations on data within a class.  Here is how this looks.  There is
 also an example of this in the tests.
     class GetWordCount < MapRedus::Process
       def self.specification
@@ -91,10 +91,10 @@ example:
       end
     end
 
-In this example, the inputt stream calls yield to output a mapredus
+In this example, the input stream calls yield to output a mapredus
 file number and a the value that is saved to file (in redis).  The
-mapper's map function calls yield to emit the key value pair for
-storage in redis.  The reducer's reduce function acts similarly.
+mapper's `map` function calls yield to emit the key value pair for
+storage in redis.  The reducer's `reduce` function acts similarly.
 
 The finalizer runs whatever needs to be run when a process completes,
 an example:
@@ -136,15 +136,15 @@ tests (you'll need to have bundler installed)
 
 Requirements
 ------------
-Bundler (this will install all the requirements below)
-Redis
-RedisSupport
-Resque
-Resque-scheduler
+* Bundler (this will install all the requirements below)
+* Redis
+* RedisSupport
+* Resque
+* Resque-scheduler
 
 ### Notes
-    Instead of calling "emit_intermediate"/"emit" in your map/reduce
-    to produce a key value pair/value you call yield, which will call
+    Instead of calling `emit_intermediate`/`emit` in your map/reduce
+    to produce a key value pair/value you call `yield`, which will call
     emit_intermediate/emit for you.  This gives flexibility in using
     Mapper/Reducer classes especially in testing.
 
@@ -198,17 +198,17 @@ not necessarily in the given order
 
 * think about the following logic
 
-    if a reducer starts working on a key after all maps have finished
+    + if a reducer starts working on a key after all maps have finished
     then when it is done the work on that key is finished forerver
     
-    this would imply a process finishes when all map tasks have
+    + this would imply a process finishes when all map tasks have
     finished and all reduce tasks that start after the map tasks have
     finished
     
-    if a reducer started before all map tasks were finished, then load
+    + if a reducer started before all map tasks were finished, then load
     its reduced result back onto the value list
     
-    if the reducer started after all map tasks finished, then emit the
+    + if the reducer started after all map tasks finished, then emit the
     result
 
 Note on Patches/Pull Requests
