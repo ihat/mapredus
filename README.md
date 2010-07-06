@@ -34,9 +34,21 @@ example is also located in the tests.
 Often times you'll want to define a mapreduce process that does
 operation on data within a class.  Here is how this looks.  There is
 also an example of this in the tests.
+    class GetWordCount < MapRedus::Process
+      def self.specification
+        {
+          :inputter => WordStream,
+          :mapper => WordCounter,
+          :reducer => Adder,
+          :finalizer => ToRedisHash,
+          :outputter => MapRedus::RedisHasher,
+          :ordered => false
+        }
+      end
+    end
 
     class Job
-      mapreduce_process :word_count, WordCounter, Adder, ToHash, MapRedus::JsonOutputter, "job:store:result"
+      mapreduce_process :word_count, GetWordCount, "job:store:result"
     end
 
 The mapreduce_process needs a name, mapper, reducer, finalizer,
@@ -50,71 +62,81 @@ The data specifies the data on which this operation is to run.  We are
 currently working on a way to allow the result_store_key to change
 depending on class properties.  For instance in the above example, if
 the Job class had an id attribute, we may want to store the final
-mapreduce result in "job:store:result:#{id}".  We'll also be looking
-to add a Inputter (maybe equivalent to Hadoops InputStream?) which
-defines how you want to process the input data to provide it to the
-map.  The inputter will be a queue process to be processed by the
-resque queue.
+mapreduce result in "job:store:result:#{id}".
 
-### Mappers, Reducers, Finalizers
-MapRedus needs a mapper, reducer, finalizer to be defined to run, for
+### Inputters, Mappers, Reducers, Finalizers
+
+MapRedus needs a input stream, mapper, reducer, finalizer to be
+defined to run.  The input stream defines how a block of your data
+gets divided so that a mapper can work on a small portion to map. For
 example:
+
+    class InputStream < MapRedus::InputStream
+      def self.scan(data_object)
+        # your data object is a reference to a block of text in redis
+        text_block = MapRedus.redis.get(data_object)
+        text_block.each_line.each_with_index do |line, i|
+          yield(i, line)
+        end
+      end
+    end
 
     class Mapper < MapRedus::Mapper
       def self.map(data_to_map)
-        data_to_map.split(" ").each do |data|
-          key, value = data.split(",")
+        data_to_map.each do |data|
+          key = data
+          value = 1
           yield( key, value )
         end
       end
     end
 
-In this example, the mapper's map function calls yield to emit the key
-value pair for storage in redis.  The reducer's reduce function acts
-similarly.
+In this example, the inputt stream calls yield to output a mapredus
+file number and a the value that is saved to file (in redis).  The
+mapper's map function calls yield to emit the key value pair for
+storage in redis.  The reducer's reduce function acts similarly.
 
 The finalizer runs whatever needs to be run when a process completes,
 an example:
 
     class Finalizer < MapRedus::Finalizer
       def self.finalize(process)
-        result = {}
-        process.each_key_value do |key, value|
-          result[key] = value
+        process.each_key_reduced_value do |key, value|
+          process.outputter.encode(process.keyname, key, value)
         end
-        process.save_result(result)
+        ...
+        < set off a new mapredus process to use this stored data >
       end
     end
 
-If you are dealing with a lot of keys and values, you'll likely not
-want to store your data in this manner; this is just an example of
-what you can do.  In this example the saved result is saved for as
-long as needed.  Often times will want to encode the saved result in a
-way (since it is being saved to redis as a string).  For example we
-provide a JsonOutputter which serializes the result as Json.
+The process.keyname refers the final result key that is stored in
+redis.  The outputter is needed to define how exactly that encoding is
+defined.  We provided an outputter that encodes your data into a redis
+hash.
 
-    class JsonOutputter < MapRedus::Outputter
-      def encode(o)
-        o.to_json
+    class RedisHasher < MapRedus::Outputter
+      def encode(result_key, k, v)
+        MapRedus::FileSystem.hset(result_key, k, v)
       end
 
-      def decode(o)
-        JSON.parse(o)
+      def decode(result_key, k)
+        MapRedus::FileSystem.hget(result_key, k)
       end
     end
 
-The JsonOutputter we provide encodes using Yajl if available. The
-default Outputter makes no changes to original result.
+The default Outputter makes no changes to original result, and tries
+to store that directly into redis as a string.
 
 Running Tests
 -------------
 
 Run the tests which tests the word counter example and some other
-tests
-    bundle exec rake
+tests (you'll need to have bundler installed)
+    rake
 
 Requirements
 ------------
+Bundler (this will install all the requirements below)
 Redis
 RedisSupport
 Resque
