@@ -26,8 +26,6 @@ module MapRedus
     # TODO: Resque::AutoRetry might mess this up.
     def self.perform(pid, key)
       process = Process.open(pid)
-      return unless process
-      
       reduce(process.map_values(key)) do |reduce_val|
         process.emit( key, reduce_val )
       end

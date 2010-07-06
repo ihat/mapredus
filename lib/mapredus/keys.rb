@@ -13,6 +13,9 @@ module MapRedus
   #
   redis_key :pid, "mapredus:process:PID"
 
+  # The input blocks broken down by the InputStream
+  redis_key :input, "mapredus:process:PID:input"
+
   # All the keys that the map produced
   #
   redis_key :keys, "mapredus:process:PID:keys"
@@ -63,14 +66,14 @@ module MapRedus
   # contained in the ProcessInfo hash (redis_key :state, "mapredus:process:PID:master:state")
   #
   NOT_STARTED = "not_started"
-  MAP_IN_PROGRESS = "mappers"
+  INPUT_MAP_IN_PROGRESS = "mappers"
   REDUCE_IN_PROGRESS = "reducers"
   FINALIZER_IN_PROGRESS = "finalizer"
   COMPLETE = "complete"
   FAILED = "failed"
   STATE_MACHINE = { nil => NOT_STARTED,
-    NOT_STARTED => MAP_IN_PROGRESS,
-    MAP_IN_PROGRESS => REDUCE_IN_PROGRESS,
+    NOT_STARTED => INPUT_MAP_IN_PROGRESS,
+    INPUT_MAP_IN_PROGRESS => REDUCE_IN_PROGRESS,
     REDUCE_IN_PROGRESS => FINALIZER_IN_PROGRESS,
     FINALIZER_IN_PROGRESS => COMPLETE}
 

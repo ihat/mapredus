@@ -20,46 +20,35 @@ module MapRedus
     #   it must free itself as a slave from Resque
     #   enslave mappers
     #
-    def self.perform( pid )
+    def self.perform( pid, data_object )
       process = Process.open(pid)
-      process.update(:state => MAP_IN_PROGRESS)
-      enslave_mappers(process)
+      enslave_inputter(process, data_object)
+      process.update(:state => INPUT_MAP_IN_PROGRESS)
     end
 
     #
     # The order of operations that occur in the mapreduce process
     #
-    def self.mapreduce(process)
+    # The inputter sets off the mapper processes
+    #
+    def self.mapreduce( process, data_object )
+      start_metrics(process.pid)
       if process.synchronous
-        process.update(:state => MAP_IN_PROGRESS)
-        enslave_mappers(process)
+        process.update(:state => INPUT_MAP_IN_PROGRESS)
+        enslave_inputter(process, data_object)
         process.update(:state => REDUCE_IN_PROGRESS)
         enslave_reducers(process)
         process.update(:state => FINALIZER_IN_PROGRESS)
         enslave_finalizer(process)
       else
-        Resque.push(QueueProcess.queue, {:class => MapRedus::Master , :args => [process.pid]} )
+        Resque.push(QueueProcess.queue, {:class => MapRedus::Master , :args => [process.pid, data_object]} )
       end
     end
 
-    # TODO: this is where we would define an input reader 
-    #
-    def self.partition_data( arr, partition_size )
-      0.step(arr.size, partition_size) do |i|
-        yield arr[i...(i + partition_size)]
-      end
+    def self.enslave_inputter(process, data_object)
+      enslave( process, process.inputter, process.pid, data_object )
     end
     
-    def self.enslave_mappers( process )
-      start_metrics(process.pid)
-      
-      partition_data( process.data, process.mapper.partition_size ) do |data_chunk|
-        unless data_chunk.empty?
-          enslave_map( process, data_chunk )
-        end
-      end
-    end
-
     def self.enslave_reducers( process )
       process.map_keys.each do |key|
         enslave_reduce( process, key )
@@ -142,6 +131,7 @@ module MapRedus
         Resque.redis.lrange(q_key, 0, -1).each do | string |
           json   = Helper.decode(string)
           match  = json['class'] == "MapRedus::Master"
+          match |= json['class'] == process.inputter.to_s
           match |= json['class'] == process.mapper.to_s
           match |= json['class'] == process.reducer.to_s
           match |= json['class'] == process.finalizer.to_s

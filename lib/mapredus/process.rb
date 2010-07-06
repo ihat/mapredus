@@ -24,7 +24,7 @@ module MapRedus
     # Public: Keep track of information that may show up as the redis json value
     #         This is so we know exactly what might show up in the json hash
     READERS = [:pid]
-    ATTRS = [:mapper, :reducer, :finalizer, :outputter, :data, :ordered, :synchronous, :result_timeout, :keyname, :state]
+    ATTRS = [:inputter, :mapper, :reducer, :finalizer, :outputter, :ordered, :synchronous, :result_timeout, :keyname, :state]
     READERS.each { |r| attr_reader r }
     ATTRS.each { |a| attr_accessor a }
 
@@ -36,10 +36,10 @@ module MapRedus
 
     def read(json_info)
       @json = json_info
+      @inputter = Helper.class_get(json_helper(:inputter))
       @mapper = Helper.class_get(json_helper(:mapper))
       @reducer = Helper.class_get(json_helper(:reducer))
       @finalizer = Helper.class_get(json_helper(:finalizer))
-      @data = json_helper(:data)
       @ordered = json_helper(:ordered)
       @synchronous = json_helper(:synchronous)
       @result_timeout = json_helper(:result_timeout) || DEFAULT_TIME
@@ -134,9 +134,9 @@ module MapRedus
       end
     end
 
-    def run( synchronous = false )
+    def run( data_object, synchronous = false )
       update(:synchronous => synchronous)
-      Master.mapreduce( self )
+      Master.mapreduce( self, data_object )
       true
     end
 
@@ -144,7 +144,6 @@ module MapRedus
     # Should also have some notion of whether the process is completed or not
     # since the master might not be working, but the process is not yet complete
     # so it is still running
-    #
     def running?
       Master.working?(@pid)
     end
@@ -287,14 +286,8 @@ module MapRedus
     #   Mapper = "Mapper"
     #   Reducer = "Reducer"
     # 
-    # Data represents the initial input data, currently we assume
-    # that data is an array.
-    # 
     # Default finalizer
     #   "MapRedus::Finalizer"
-    # 
-    # The options will go into the extra_data section of the spec and
-    # should be whatever extra information the process may need to have during running
     # 
     # Returns the new process id.
     def self.create( *args )
@@ -307,14 +300,14 @@ module MapRedus
     end
     
     def self.specification(*args)
-      mapper_class, reducer_class, finalizer, outputter, keyname, data = args
+      inputter_class, mapper_class, reducer_class, finalizer, outputter, keyname = args
       {
+        :inputter => inputter_class,
         :mapper => mapper_class,
         :reducer => reducer_class,
         :finalizer => finalizer,
         :outputter => outputter,
-        :keyname => keyname,
-        :data => data
+        :keyname => keyname
       }
     end
 
@@ -347,14 +340,10 @@ module MapRedus
       FileSystem.incrby(ProcessInfo.processes_count, 1 + rand(20)) 
     end
 
-    # Given a keyname, get the result from the process.
+    # Given a result keyname, delete the result
     #
     # Examples
-    #   Filesystem uses 
-    def self.get_saved_result(keyname)
-      FileSystem.get( ProcessInfo.result_cache(keyname) )
-    end
-
+    #   Process.delete_saved_result(key)
     def self.delete_saved_result(keyname)
       FileSystem.del( ProcessInfo.result_cache(keyname) )
     end

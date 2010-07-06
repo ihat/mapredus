@@ -22,7 +22,6 @@ module MapRedus
 
     def self.perform(pid)
       process = Process.open(pid)
-      return unless process
       result = finalize(process)
       Master.finish_metrics(pid)
       result

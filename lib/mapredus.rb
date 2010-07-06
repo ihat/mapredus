@@ -18,6 +18,10 @@ module MapRedus
     def initialize; super("MapRedus Reducer: need to have reduce method defined");end
   end
 
+  class InvalidInputStream < NotImplementedError
+    def initialize; super("MapRedus InputStream: need to have scan method defined");end
+  end
+
   class InvalidProcess < NotImplementedError
     def initialize; super("MapRedus Process Creation Failed: Specifications were not specified");end
   end
