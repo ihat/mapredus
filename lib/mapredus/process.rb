@@ -35,22 +35,21 @@ module MapRedus
     end
 
     def read(json_info)
-      @json = json_info
-      @inputter = Helper.class_get(json_helper(:inputter))
-      @mapper = Helper.class_get(json_helper(:mapper))
-      @reducer = Helper.class_get(json_helper(:reducer))
-      @finalizer = Helper.class_get(json_helper(:finalizer))
-      @ordered = json_helper(:ordered)
-      @synchronous = json_helper(:synchronous)
-      @result_timeout = json_helper(:result_timeout) || DEFAULT_TIME
-      @keyname = json_helper(:keyname)
-      @state = json_helper(:state) || NOT_STARTED
-      @outputter = json_helper(:outputter)
+      @inputter = Helper.class_get(json_helper(json_info, :inputter))
+      @mapper = Helper.class_get(json_helper(json_info, :mapper))
+      @reducer = Helper.class_get(json_helper(json_info, :reducer))
+      @finalizer = Helper.class_get(json_helper(json_info, :finalizer))
+      @ordered = json_helper(json_info, :ordered)
+      @synchronous = json_helper(json_info, :synchronous)
+      @result_timeout = json_helper(json_info, :result_timeout) || DEFAULT_TIME
+      @keyname = json_helper(json_info, :keyname)
+      @state = json_helper(json_info, :state) || NOT_STARTED
+      @outputter = json_helper(json_info, :outputter)
       @outputter = @outputter ? Helper.class_get(@outputter) : MapRedus::Outputter
     end
 
-    def json_helper(key)
-      @json[key.to_s] || @json[key.to_sym]
+    def json_helper(json_info, key)
+      json_info[key.to_s] || json_info[key.to_sym]
     end
 
     def to_s; to_json; end
