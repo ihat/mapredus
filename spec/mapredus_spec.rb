@@ -267,3 +267,29 @@ describe "MapRedus Mapper/Reducer/Finalizer" do
     @process.outputter.decode("test:result", "data").should == "1"
   end
 end
+
+describe "MapReduce Support" do
+  before(:each) do
+    MapRedus::FileSystem.flushall
+    @doc = Document.new(10)
+    @other_doc = Document.new(15)
+  end
+
+  it "should be simple to create a mapredus as a part of a job" do
+    MapRedus::FileSystem.setnx("wordstream:test", GetWordCount::TEST)
+    MapRedus::FileSystem.setnx("charstream:test", "simpler test")
+    other_answer = {" "=>1, "l"=>1, "m"=>1, "e"=>2, "p"=>1, "r"=>1, "s"=>2, "t"=>2, "i"=>1}
+
+    @doc.calculate_chars("wordstream:test")
+    @other_doc.calculate_chars("charstream:test")
+    work_off
+
+    GetCharCount::EXPECTED_ANSWER.keys.each do |char|
+      @doc.mapreduce.char_count_result(char).should == GetCharCount::EXPECTED_ANSWER[char].to_s
+    end
+    
+    other_answer.keys.each do |char|
+      @other_doc.mapreduce.char_count_result(char).should == other_answer[char].to_s
+    end
+  end
+end

@@ -9,6 +9,10 @@ module MapRedus
   class InvalidProcess < NotImplementedError
     def initialize; super("MapRedus QueueProcess: need to have perform method defined");end
   end
+  
+  class ProcessSpecificationError < InvalidProcess
+    def initialize; super("MapRedus Process: need to have the specification defined");end
+  end
 
   class InvalidMapper < NotImplementedError
     def initialize; super("MapRedus Mapper: need to have map method defined");end

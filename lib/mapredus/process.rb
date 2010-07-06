@@ -293,22 +293,14 @@ module MapRedus
     def self.create( *args )
       new_pid = get_available_pid
       
-      spec = specification( *args )
+      spec = specification(*args)
       return nil unless spec
 
       Process.new(new_pid, spec).save
     end
     
     def self.specification(*args)
-      inputter_class, mapper_class, reducer_class, finalizer, outputter, keyname = args
-      {
-        :inputter => inputter_class,
-        :mapper => mapper_class,
-        :reducer => reducer_class,
-        :finalizer => finalizer,
-        :outputter => outputter,
-        :keyname => keyname
-      }
+      raise ProcessSpecificationError
     end
 
     def self.info(pid)
