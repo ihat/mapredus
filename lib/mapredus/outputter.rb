@@ -4,8 +4,13 @@ module MapRedus
   # of the FileSystem.
   #
   class Outputter < QueueProcess
-    def self.decode(o); o; end
-    def self.encode(o); o; end
+    def self.decode(result_key)
+      FileSystem.get(result_key)
+    end
+
+    def self.encode(result_key, o)
+      FileSystem.set(result_key, o)
+    end
 
     #
     # type should either be "decode" or "encode"
@@ -16,8 +21,13 @@ module MapRedus
   end
 
   class JsonOutputter < Outputter
-    def self.decode(o); Helper.decode(o); end
-    def self.encode(o); Helper.encode(o); end
+    def self.decode(result_key)
+      Helper.decode(FileSystem.get(result_key))
+    end
+
+    def self.encode(result_key, o)
+      FileSystem.set(result_key, Helper.encode(o))
+    end
   end
 
   class RedisHasher < Outputter
