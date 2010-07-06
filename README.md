@@ -127,6 +127,16 @@ hash.
 The default Outputter makes no changes to original result, and tries
 to store that directly into redis as a string.
 
+Working Locally
+---------------
+
+MapRedus uses Bundler to manage dependencies. With Bundler installed:
+
+    bundle install
+
+You should now be able to run tests and do all other tasks with
+`rake`.
+
 Running Tests
 -------------
 
