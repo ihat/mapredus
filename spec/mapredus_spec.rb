@@ -158,8 +158,8 @@ describe "MapRedus Process" do
 
   it "emit_intermediate on an ordered process" do
     @process.update(:ordered => true)
-    @process.emit_intermediate(1, "number", "one")
     @process.emit_intermediate(2, "place", "two")
+    @process.emit_intermediate(1, "number", "one")
     res = []
     @process.each_key_nonreduced_value do |key, value|
       res << [key, value]

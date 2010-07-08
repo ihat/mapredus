@@ -297,7 +297,7 @@ module MapRedus
 
       Process.new(new_pid, spec).save
     end
-    
+
     def self.specification(*args)
       raise ProcessSpecificationError
     end
