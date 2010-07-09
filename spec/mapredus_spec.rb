@@ -78,6 +78,59 @@ describe "MapRedus" do
       @process.outputter.decode(@process.result_key, key).to_i.should == GetWordCount::EXPECTED_ANSWER[key]
     end
   end
+
+  it "runs the default process" do
+    process = MapRedus::Process.create
+    process.update(:key_args => [process.pid])
+    process.result_key.should == "mapredus:process:#{process.pid}:result"
+    process.run("wordstream:test")
+    work_off
+    
+    process.map_keys.size.should == GetWordCount::EXPECTED_ANSWER.size
+    process.map_keys.each do |key|
+      reduce_values = process.reduce_values(key)
+      reduce_values.size.should == 1
+    end
+
+    process.each_key_reduced_value do |key, value|
+      process.outputter.decode(process.result_key, key).to_i.should == GetWordCount::EXPECTED_ANSWER[key]
+    end
+  end
+
+  it "runs a process without result_key being set (using the default key location)" do
+    process = CharCountTest.create
+    process.update(:key_args => [process.pid])
+    process.result_key.should == "mapredus:process:#{process.pid}:result"
+    process.run("wordstream:test")
+    work_off
+    
+    process.map_keys.size.should == GetCharCount::EXPECTED_ANSWER.size
+    process.map_keys.each do |key|
+      reduce_values = process.reduce_values(key)
+      reduce_values.size.should == 1
+    end
+
+    process.each_key_reduced_value do |key, value|
+      process.outputter.decode(process.result_key, key).to_i.should == GetCharCount::EXPECTED_ANSWER[key]
+    end
+  end
+
+  it "runs a process where key arguments exist and extra arguments are used" do 
+    process = TestResultKeyArguments.create
+    process.result_key("extra_arg").should == "test:key_argument:test:extra_arg"
+    process.run("wordstream:test")
+    work_off
+    
+    process.map_keys.size.should == GetWordCount::EXPECTED_ANSWER.size
+    process.map_keys.each do |key|
+      reduce_values = process.reduce_values(key)
+      reduce_values.size.should == 1
+    end
+
+    process.each_key_reduced_value do |key, value|
+      process.outputter.decode(process.result_key("extra_arg"), key).to_i.should == GetWordCount::EXPECTED_ANSWER[key]
+    end
+  end
 end
 
 describe "MapRedus Process" do

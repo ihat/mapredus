@@ -3,7 +3,7 @@ module MapRedus
   ProcessInfo = RedisKey
   
   #### USED WITHIN process.rb ####
-  
+ 
   # Holds the current map reduce processes that are either running or which still have data lying around
   #
   redis_key :processes, "mapredus:processes"
@@ -35,6 +35,10 @@ module MapRedus
   # Temporary redis space for reduce functions to use
   #
   redis_key :temp, "mapredus:process:PID:temp_reduce_key:HASHED_KEY:UNIQUE_REDUCE_HOSTNAME:UNIQUE_REDUCE_PROCESS_ID"
+
+  # The default location for the result
+  #
+  DEFAULT_RESULT_KEY = "mapredus:process:PID:result"
 
   #### USED WITHIN master.rb ####
   

@@ -18,8 +18,21 @@ class CharCounter < MapRedus::Mapper
   end
 end
 
+class ExtraResultKeyHash < MapRedus::Finalizer
+  def self.finalize(process)
+    process.each_key_reduced_value do |key, value|
+      process.outputter.encode(process.result_key("extra"), key, value)
+    end
+  end
+end
+
 class GetCharCount < MapRedus::Process
   EXPECTED_ANSWER = {"k"=>2, "v"=>1, " "=>54, ","=>3, "w"=>7, "a"=>17, "l"=>12, "b"=>2, "m"=>4, "c"=>3, "."=>2, "y"=>3, "n"=>18, "D"=>1, "d"=>15, "o"=>13, "p"=>14, "e"=>34, "f"=>6, "r"=>13, "g"=>6, "S"=>1, "s"=>12, "h"=>19, "H"=>1, "t"=>20, "i"=>16, "u"=>5, "j"=>1}
+  inputter CharStream
+  mapper CharCounter
+end
+
+class CharCountTest < MapRedus::Process
   inputter CharStream
   mapper CharCounter
 end
@@ -28,6 +41,24 @@ class GetWordCount < MapRedus::Process
   TEST = "He pointed his finger in friendly jest and went over to the parapet laughing to himself. Stephen Dedalus stepped up, followed him wearily halfway and sat down on the edge of the gunrest, watching him still as he propped his mirror on the parapet, dipped the brush in the bowl and lathered cheeks and neck."
   EXPECTED_ANSWER = {"gunrest"=>1, "over"=>1, "still"=>1, "of"=>1, "him"=>2, "and"=>4, "bowl"=>1, "himself"=>1, "went"=>1, "friendly"=>1, "finger"=>1, "propped"=>1, "cheeks"=>1, "dipped"=>1, "down"=>1, "wearily"=>1, "up"=>1, "stepped"=>1, "dedalus"=>1, "to"=>2, "in"=>2, "sat"=>1, "the"=>6, "pointed"=>1, "as"=>1, "followed"=>1, "stephen"=>1, "laughing"=>1, "his"=>2, "he"=>2, "brush"=>1, "jest"=>1, "neck"=>1, "mirror"=>1, "edge"=>1, "on"=>2, "parapet"=>2, "lathered"=>1, "watching"=>1, "halfway"=>1}
   set_result_key "test:result"
+end
+
+class TestHash < MapRedus::Finalizer
+  def self.finalize(process)
+    process.each_key_reduced_value do |key, value|
+      process.outputter.encode(process.result_key("extra_arg"), key, value)
+    end
+  end
+end
+
+class TestResultKeyArguments < MapRedus::Process
+  #
+  # EXTRA_KEY_ARG is not known at the time the process is run
+  # but it is known by the time the finalizer is running
+  #
+  finalizer TestHash
+  set_result_key "test:KEY_ARG:test:EXTRA_KEY_ARG"
+  key_args ["key_argument"]
 end
 
 class Document

@@ -265,12 +265,23 @@ module MapRedus
       FileSystem.lrange( ProcessInfo.reduce(@pid, hashed_key), 0, -1 )
     end
 
+    # functions to manage the location of the result in the FileSystem
+    #
+    # Examples
+    #   process.result_key(extra, arguments)
+    #   Process.result_key(all, needed, arguments)
+    #   # => "something:that:uses:the:extra:arguments"
+    # 
+    #   SomeProcessSubclass.set_result_key("something:ARG:something:VAR")
+    #   # sets the result key for (CAPITAL require arguments to fill in the values)
     def result_key(*args)
       Helper.class_get(@type).result_key(*[@key_args, args].flatten)
     end
 
     def self.result_key(*args)
-      ProcessInfo.send( "#{self.to_s.gsub(/\W/,"_")}_result_cache", *args )
+      key_maker = "#{self.to_s.gsub(/\W/,"_")}_result_cache"
+      key_maker = ProcessInfo.respond_to?(key_maker) ? key_maker : "#{MapRedus::Process.to_s.gsub(/\W/,"_")}_result_cache"
+      ProcessInfo.send( key_maker, *args )
     end
 
     def self.set_result_key(key_struct)
@@ -303,11 +314,11 @@ module MapRedus
     #
     # Example
     #   class AnswerDistribution < MapRedus::Process
-    #     inputter = JudgmentStream
-    #     mapper = ResponseFrequencyMap
-    #     reducer = Adder
-    #     finalizer = AnswerCount
-    #     outputter = MapRedus::RedisHasher
+    #     inputter JudgmentStream
+    #     mapper ResponseFrequencyMap
+    #     reducer Adder
+    #     finalizer AnswerCount
+    #     outputter MapRedus::RedisHasher
     #   end
     class << self; attr_reader *ATTRS; end
 
@@ -343,6 +354,7 @@ module MapRedus
     finalizer ToRedisHash
     outputter RedisHasher
     type Process
+    set_result_key DEFAULT_RESULT_KEY
     
     # This function returns all the redis keys produced associated
     # with a process's process id.
