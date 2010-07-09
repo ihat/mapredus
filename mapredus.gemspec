@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["John Le", "Brian O'Rourke"]
-  s.date = %q{2010-07-06}
+  s.date = %q{2010-07-09}
   s.description = %q{simple mapreduce framework using redis and resque}
   s.email = %q{john@doloreslabs.com}
   s.extra_rdoc_files = [
@@ -18,6 +18,7 @@ Gem::Specification.new do |s|
   ]
   s.files = [
     "lib/mapredus.rb",
+     "lib/mapredus/default_classes.rb",
      "lib/mapredus/filesystem.rb",
      "lib/mapredus/finalizer.rb",
      "lib/mapredus/inputter.rb",
