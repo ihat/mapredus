@@ -114,10 +114,13 @@ an example:
       end
     end
 
-The process.keyname refers the final result key that is stored in
-redis.  The outputter is needed to define how exactly that encoding is
-defined.  We provided an outputter that encodes your data into a redis
-hash.
+The process.result_key refers the final result key that is stored in
+redis.  The result_key may take arguments which define the output of
+the key.  The process will also incorporate initially given key
+arguments into the result_key.  result_key's are defined exactly as a
+redis_key in the redis_support gem. The outputter is needed to define
+how exactly that encoding is defined.  We provided an outputter that
+encodes your data into a redis hash.
 
     class RedisHasher < MapRedus::Outputter
       def encode(result_key, k, v)
