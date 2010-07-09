@@ -95,7 +95,6 @@ module MapRedus
 end
 
 require 'mapredus/keys'
-require 'mapredus/process'
 require 'mapredus/filesystem'
 require 'mapredus/master'
 require 'mapredus/mapper'
@@ -104,3 +103,5 @@ require 'mapredus/finalizer'
 require 'mapredus/support'
 require 'mapredus/outputter'
 require 'mapredus/inputter'
+require 'mapredus/default_classes'
+require 'mapredus/process'

@@ -8,13 +8,41 @@ describe "MapRedus" do
     MapRedus::FileSystem.setnx("wordstream:test", GetWordCount::TEST)
   end
 
+  it "has sets up the correct default classes" do
+    MapRedus::Process.inputter.should == MapRedus::WordStream
+    MapRedus::Process.mapper.should == MapRedus::WordCounter
+    MapRedus::Process.reducer.should == MapRedus::Adder
+    MapRedus::Process.finalizer.should == MapRedus::ToRedisHash
+    MapRedus::Process.outputter.should == MapRedus::RedisHasher
+
+    GetWordCount.result_key.should == "test:result"
+    GetWordCount.inputter.should == MapRedus::WordStream
+    GetWordCount.mapper.should == MapRedus::WordCounter
+    GetWordCount.reducer.should == MapRedus::Adder
+    GetWordCount.finalizer.should == MapRedus::ToRedisHash
+    GetWordCount.outputter.should == MapRedus::RedisHasher
+    
+    GetCharCount.inputter.should == CharStream
+    GetCharCount.mapper.should == CharCounter
+    GetCharCount.reducer.should == MapRedus::Adder
+    GetCharCount.finalizer.should == MapRedus::ToRedisHash
+    GetCharCount.outputter.should == MapRedus::RedisHasher
+  end
+
   it "creates a process successfully" do
     process = GetWordCount.open(@process.pid)
     
-    process.inputter.should == WordStream
-    process.mapper.should == WordCounter
-    process.reducer.should == Adder
-    process.finalizer.should == ToRedisHash
+    process.inputter.should == MapRedus::WordStream
+    process.mapper.should == MapRedus::WordCounter
+    process.reducer.should == MapRedus::Adder
+    process.finalizer.should == MapRedus::ToRedisHash
+    process.outputter.should == MapRedus::RedisHasher
+
+    process = GetCharCount.create
+    process.inputter.should == CharStream
+    process.mapper.should == CharCounter
+    process.reducer.should == MapRedus::Adder
+    process.finalizer.should == MapRedus::ToRedisHash
     process.outputter.should == MapRedus::RedisHasher
   end
 
@@ -22,6 +50,7 @@ describe "MapRedus" do
     ##
     ## In general map reduce shouldn't be running operations synchronously
     ##
+    @process.class.should == GetWordCount
     @process.run("wordstream:test", synchronously = true)
     @process.map_keys.size.should == GetWordCount::EXPECTED_ANSWER.size
 
@@ -31,7 +60,7 @@ describe "MapRedus" do
     end
 
     @process.each_key_reduced_value do |key, value|
-      @process.outputter.decode(@process.keyname, key).to_i.should == GetWordCount::EXPECTED_ANSWER[key]
+      @process.outputter.decode(@process.result_key, key).to_i.should == GetWordCount::EXPECTED_ANSWER[key]
     end
   end
 
@@ -46,7 +75,7 @@ describe "MapRedus" do
     end
 
     @process.each_key_reduced_value do |key, value|
-      @process.outputter.decode(@process.keyname, key).to_i.should == GetWordCount::EXPECTED_ANSWER[key]
+      @process.outputter.decode(@process.result_key, key).to_i.should == GetWordCount::EXPECTED_ANSWER[key]
     end
   end
 end
@@ -207,14 +236,14 @@ describe "MapRedus Master" do
   end
 
   it "handles slaves (enslaving) correctly" do
-    MapRedus::Master.enslave(@process, WordCounter, @process.pid, "test")
-    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid, "test"], "class"=>"WordCounter"}]
+    MapRedus::Master.enslave(@process, MapRedus::WordCounter, @process.pid, "test")
+    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid, "test"], "class"=>"MapRedus::WordCounter"}]
     MapRedus::Master.slaves(@process.pid).should == ["1"]
   end
 
   it "handles slaves (freeing) correctly" do
-    MapRedus::Master.enslave(@process, WordCounter, @process.pid, "test")
-    MapRedus::Master.enslave(@process, WordCounter, @process.pid, "test")
+    MapRedus::Master.enslave(@process, MapRedus::WordCounter, @process.pid, "test")
+    MapRedus::Master.enslave(@process, MapRedus::WordCounter, @process.pid, "test")
 
     MapRedus::Master.slaves(@process.pid).should == ["1", "1"]
 
@@ -237,12 +266,12 @@ describe "MapRedus Mapper/Reducer/Finalizer" do
     @process.update(:state => MapRedus::INPUT_MAP_IN_PROGRESS)
     @process.state.should == MapRedus::INPUT_MAP_IN_PROGRESS
     @process.inputter.perform(@process.pid, "wordstream:test")
-    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid, 0], "class"=>"WordCounter"}]
+    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid, 0], "class"=>"MapRedus::WordCounter"}]
     Resque.pop(:mapredus)
     @process.mapper.perform(@process.pid, 0)
     @process.reload
     @process.state.should == MapRedus::REDUCE_IN_PROGRESS
-    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid, "data"], "class"=>"Adder"}]
+    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid, "data"], "class"=>"MapRedus::Adder"}]
   end
 
   it "runs a reduce correctly proceeding to the correct next state" do
@@ -252,7 +281,7 @@ describe "MapRedus Mapper/Reducer/Finalizer" do
     @process.reducer.perform(@process.pid, "data")
     @process.reload
     @process.state.should == MapRedus::FINALIZER_IN_PROGRESS
-    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid], "class"=>"ToRedisHash"}]
+    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid], "class"=>"MapRedus::ToRedisHash"}]
   end
 
   it "should test that the finalizer correctly saves" do
@@ -268,7 +297,7 @@ describe "MapRedus Mapper/Reducer/Finalizer" do
   end
 end
 
-describe "MapReduce Support" do
+describe "MapRedus Support" do
   before(:each) do
     MapRedus::FileSystem.flushall
     @doc = Document.new(10)
@@ -285,11 +314,11 @@ describe "MapReduce Support" do
     work_off
 
     GetCharCount::EXPECTED_ANSWER.keys.each do |char|
-      @doc.mapreduce.char_count_result(char).should == GetCharCount::EXPECTED_ANSWER[char].to_s
+      @doc.mapreduce.char_count_result([@doc.id], char).should == GetCharCount::EXPECTED_ANSWER[char].to_s
     end
     
     other_answer.keys.each do |char|
-      @other_doc.mapreduce.char_count_result(char).should == other_answer[char].to_s
+      @other_doc.mapreduce.char_count_result([@other_doc.id], char).should == other_answer[char].to_s
     end
   end
 end

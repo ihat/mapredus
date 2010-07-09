@@ -4,7 +4,6 @@ module MapRedus
     class DuplicateProcessDefinitionError < MapRedusRunnerError ; end
 
     class Runner
-      attr_reader :process
       def initialize(class_name)
         @class = class_name
       end
@@ -14,7 +13,7 @@ module MapRedus
         if self.respond_to?(mr_process)
           self.send(mr_process, *args, &block)
         else
-          super(method, *args, &block)
+          super(method, *args, &block)  
         end
       end
     end
@@ -24,7 +23,7 @@ module MapRedus
     end
 
     module ClassMethods
-      def mapreduce_process( process_name, mapredus_process_class, result_store, opts = {})
+      def mapreduce_process( process_name, mapredus_process_class, result_store )
         runner_self = Runner
         class_name = self.to_s.gsub(/\W/,"_")
 
@@ -34,17 +33,18 @@ module MapRedus
           raise DuplicateProcessDefintionError
         end
         
-        keyname = "mapredus_key_#{global_process_name}"
-        RedisSupport.redis_key( keyname, result_store )
+        mapredus_process_class.set_result_key( result_store )
 
-        runner_self.send( :define_method, global_process_name ) do |data, *var|
-          @process = mapredus_process_class.create
-          @process.update(:keyname => RedisSupport::Keys.send( keyname, *var ))
-          @process.run(data)
+        runner_self.send( :define_method, global_process_name ) do |data, key_arguments|
+          process = mapredus_process_class.create
+          process.update(:key_args => key_arguments)
+          process.run(data)
+          process
         end
 
-        runner_self.send( :define_method, "#{global_process_name}_result" ) do |*outputter_args|
-          @process.outputter.decode(@process.keyname, *outputter_args)
+        runner_self.send( :define_method, "#{global_process_name}_result" ) do |key_arguments, *outputter_args|
+          key = mapredus_process_class.result_key( *key_arguments )
+          mapredus_process_class.outputter.decode( key, *outputter_args)
         end
       end
     end

@@ -24,20 +24,20 @@ module MapRedus
     # Setup locks on results using RedisSupport lock functionality
     #
     # Examples
-    #   FileSystem::has_lock?(keyname)
+    #   FileSystem::has_lock?(key)
     #   # => true or false 
     #
     # Returns true if there's a lock
-    def self.has_lock?(keyname)
-      MapRedus.has_redis_lock?( RedisKey.result_cache(keyname) ) 
+    def self.has_lock?(key)
+      MapRedus.has_redis_lock?( RedisKey.result_cache(key) ) 
     end
     
-    def self.acquire_lock(keyname)
-      MapRedus.acquire_redis_lock_nonblock( RedisKey.result_cache(keyname), 60 * 60 )
+    def self.acquire_lock(key)
+      MapRedus.acquire_redis_lock_nonblock( RedisKey.result_cache(key), 60 * 60 )
     end
     
-    def self.release_lock(keyname)
-      MapRedus.release_redis_lock( RedisKey.result_cache(keyname) )
+    def self.release_lock(key)
+      MapRedus.release_redis_lock( RedisKey.result_cache(key) )
     end
   end
 end

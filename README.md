@@ -31,20 +31,25 @@ environment for your worker to be able to run mapreduce processs.  An
 example is also located in the tests.
 
 ### Attaching a mapreduce process to a class
-You will often want to define a mapreduce process that does some 
-operations on data within a class.  Here is how this looks.  There is
-also an example of this in the tests.
+
+You will often want to define a mapreduce process that does some
+operations on data within a class.  The process should have an
+inputter, mapper, reducer, finalizer, and outputter defined. By
+default a process will have the specifications shown below.  There is
+also an example of how to do this in the tests.
+
     class GetWordCount < MapRedus::Process
-      def self.specification
-        {
-          :inputter => WordStream,
-          :mapper => WordCounter,
-          :reducer => Adder,
-          :finalizer => ToRedisHash,
-          :outputter => MapRedus::RedisHasher,
-          :ordered => false
-        }
-      end
+      inputter MapRedus::WordStream
+      mapper MapRedus::WordCounter
+      reducer MapRedus::Adder
+      finalizer MapRedus::ToRedisHash
+      outputter MapRedus::RedisHasher
+      ordered false
+    end
+
+    class GetCharCount < MapRedus::Process
+      inputter MapRedus::CharStream
+      mapper MapRedus::CharCounter
     end
 
     class Job
@@ -102,7 +107,7 @@ an example:
     class Finalizer < MapRedus::Finalizer
       def self.finalize(process)
         process.each_key_reduced_value do |key, value|
-          process.outputter.encode(process.keyname, key, value)
+          process.outputter.encode(process.result_key, key, value)
         end
         ...
         < set off a new mapredus process to use this stored data >

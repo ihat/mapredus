@@ -6,16 +6,19 @@ module MapRedus
   # the value of the redis object is a json object which contains: 
   # 
   #   {
+  #     inputter : inputstreamclass,
   #     mapper : mapclass,
   #     reducer : reduceclass,
   #     finalizer : finalizerclass,
+  #     outputter : outputterclass,
   #     partitioner : <not supported>,
   #     combiner : <not supported>,
   #     ordered : true_or_false   ## ensures ordering keys from the map output --> [ order, key, value ],
   #     synchronous : true_or_false   ## runs the process synchronously or not (generally used for testing)
   #     result_timeout : lenght of time a result is saved ## 3600 * 24
-  #     keyname : the location to the save the result of the process (cache location)
+  #     key_args : arguments to be added to the key location of the result save (cache location)
   #     state : the current state of the process (shouldn't be set by the process and starts off as nil)
+  #     type : the original process class ( currently this is needed so we can have namespaces for the result_cache keys )
   #   }
   #
   # The user has the ability in subclassing this class to create extra features if needed
@@ -24,7 +27,7 @@ module MapRedus
     # Public: Keep track of information that may show up as the redis json value
     #         This is so we know exactly what might show up in the json hash
     READERS = [:pid]
-    ATTRS = [:inputter, :mapper, :reducer, :finalizer, :outputter, :ordered, :synchronous, :result_timeout, :keyname, :state]
+    ATTRS = [:inputter, :mapper, :reducer, :finalizer, :outputter, :ordered, :synchronous, :result_timeout, :key_args, :state, :type]
     READERS.each { |r| attr_reader r }
     ATTRS.each { |a| attr_accessor a }
 
@@ -42,10 +45,11 @@ module MapRedus
       @ordered = json_helper(json_info, :ordered)
       @synchronous = json_helper(json_info, :synchronous)
       @result_timeout = json_helper(json_info, :result_timeout) || DEFAULT_TIME
-      @keyname = json_helper(json_info, :keyname)
+      @key_args = json_helper(json_info, :key_args) || []
       @state = json_helper(json_info, :state) || NOT_STARTED
       @outputter = json_helper(json_info, :outputter)
       @outputter = @outputter ? Helper.class_get(@outputter) : MapRedus::Outputter
+      @type = Helper.class_get(json_helper(json_info, :type) || Process)
     end
 
     def json_helper(json_info, key)
@@ -174,7 +178,7 @@ module MapRedus
     #
     # Examples
     #   emit_intermediate(key, value)
-    #   # =>
+    #   # => if an ordering is required
     #   emit_intermediate(rank, key, value)
     #
     # Returns the true on success.
@@ -197,6 +201,16 @@ module MapRedus
       true
     end
 
+    # The emission associated with a reduce.  Currently all reduced
+    # values are pushed onto a redis list.  It may be the case that we
+    # want to directly use a different redis type given the kind of
+    # reduce we are doing.  Often a reduce only returns one value, so
+    # instead of a rpush, we should do a set.
+    # 
+    # Examples
+    #   emit(key, reduced_value)
+    #
+    # Returns "OK" on success.
     def emit(key, reduce_val)
       hashed_key = Helper.hash(key)
       FileSystem.rpush( ProcessInfo.reduce(@pid, hashed_key), reduce_val )
@@ -205,32 +219,6 @@ module MapRedus
     def key_collision?(hashed_key, key)
       not ( FileSystem.setnx( ProcessInfo.hash_to_key(@pid, hashed_key), key ) ||
             FileSystem.get( ProcessInfo.hash_to_key(@pid, hashed_key) ) == key.to_s )
-    end
-
-    # Saves the result to the specified keyname, using the specified outputter
-    #
-    # Example
-    #   (mapreduce:process:result:KEYNAME)
-    # OR
-    #   process:pid:result
-    #
-    # The client must ensure the the result will not be affected when to_s is applied
-    # since redis stores all values as strings
-    #
-    # Returns true on success.
-    def save_result(result)
-      res = @outputter.encode(result)
-      FileSystem.save(ProcessInfo.result(@pid), res)
-      FileSystem.save(ProcessInfo.result_cache(@keyname), res, @result_timeout) if @keyname
-      true
-    end
-
-    def get_saved_result
-      @outputter.decode(Process.get_saved_result(@keyname))
-    end
-
-    def delete_saved_result
-      Process.delete_saved_result(@keyname)
     end
 
     # Keys that the map operation produced
@@ -248,11 +236,6 @@ module MapRedus
       end
     end
 
-    def num_values(key)
-      hashed_key = Helper.hash(key)
-      FileSystem.llen( ProcessInfo.map(@pid, hashed_key) )
-    end
-
     # values that the map operation produced, for a key
     #
     # Examples
@@ -265,6 +248,10 @@ module MapRedus
       FileSystem.lrange( ProcessInfo.map(@pid, hashed_key), 0, -1 )
     end
 
+    def num_values(key)
+      hashed_key = Helper.hash(key)
+      FileSystem.llen( ProcessInfo.map(@pid, hashed_key) )
+    end
 
     # values that the reduce operation produced, for a key
     #
@@ -278,37 +265,104 @@ module MapRedus
       FileSystem.lrange( ProcessInfo.reduce(@pid, hashed_key), 0, -1 )
     end
 
-    # Map and Reduce are strings naming the Mapper and Reducer
-    # classes we want to run our map reduce with.
+    def result_key(*args)
+      Helper.class_get(@type).result_key(*[@key_args, args].flatten)
+    end
+
+    def self.result_key(*args)
+      ProcessInfo.send( "#{self.to_s.gsub(/\W/,"_")}_result_cache", *args )
+    end
+
+    def self.set_result_key(key_struct)
+      MapRedus.redefine_redis_key( "#{self.to_s.gsub(/\W/,"_")}_result_cache", key_struct )
+    end
+
+    # Create sets up a process to be run with the given specification.
+    # It saves the information in the FileSystem and returns an
+    # instance of the process that run should be called on when
+    # running is desired.
     # 
-    # For instance
-    #   Mapper = "Mapper"
-    #   Reducer = "Reducer"
-    # 
-    # Default finalizer
-    #   "MapRedus::Finalizer"
-    # 
-    # Returns the new process id.
-    def self.create( *args )
+    # Example
+    #   process = MapRedus::Process.create
+    #   process.run
+    #   
+    # Returns an instance of the process
+    def self.create
       new_pid = get_available_pid
-      
-      spec = specification(*args)
-      return nil unless spec
-
-      Process.new(new_pid, spec).save
+      specification = ATTRS.inject({}) do |ret, attr|
+        ret[attr] = send(attr)
+        ret
+      end
+      specification[:type] = self
+      self.new(new_pid, specification).save
     end
 
-    def self.specification(*args)
-      raise ProcessSpecificationError
+    # This defines the attributes to be associated with a MapRedus process
+    # This will allow us to subclass a Process, creating a new specification
+    # by specifying what say the inputter should equal
+    #
+    # Example
+    #   class AnswerDistribution < MapRedus::Process
+    #     inputter = JudgmentStream
+    #     mapper = ResponseFrequencyMap
+    #     reducer = Adder
+    #     finalizer = AnswerCount
+    #     outputter = MapRedus::RedisHasher
+    #   end
+    class << self; attr_reader *ATTRS; end
+
+    # Setter/Getter method definitions to set/get the attribute for
+    # the class. In the getter if it is not defined (nil) then return
+    # the default attribute defined in MapRedus::Process.
+    #
+    # Example
+    #   class AnswerDistribution < MapRedus::Process
+    #     inputter JudgmentStream
+    #     mapper ResponseFrequency
+    #   end
+    #   AnswerDistribution.reducer.should == Adder
+    ATTRS.each do |attr|
+      (class << self; self; end).send(:define_method, attr) do |*one_arg|
+        attribute = "@#{attr}"
+        case one_arg.size
+        when 0
+          instance_variable_get(attribute) || MapRedus::Process.instance_variable_get(attribute)
+        when 1
+          instance_variable_set(attribute, one_arg.first)
+        else
+          raise ArgumentError.new("wrong number of arguments (#{one_arg.size}) when zero or one arguments were expected")
+        end
+      end
     end
 
+    # Default attributes for the process class.  All other attributes
+    # are nil by default.
+    inputter WordStream
+    mapper WordCounter
+    reducer Adder
+    finalizer ToRedisHash
+    outputter RedisHasher
+    type Process
+    
+    # This function returns all the redis keys produced associated
+    # with a process's process id.
+    #
+    # Example
+    #   Process.info(17)
+    #
+    # Returns an array of keys associated with the process id.
     def self.info(pid)
       FileSystem.keys(ProcessInfo.pid(pid) + "*")
     end
     
+    # Returns an instance of the process class given the process id.
+    # If no such process id exists returns nil.
+    #
+    # Example
+    #   process = Process.open(17)
     def self.open(pid)
       spec = Helper.decode( FileSystem.get(ProcessInfo.pid(pid)) )
-      spec && Process.new( pid, spec )
+      spec && self.new( pid, spec )
     end
 
     # Find out what map reduce processes are out there
@@ -331,12 +385,13 @@ module MapRedus
       FileSystem.incrby(ProcessInfo.processes_count, 1 + rand(20)) 
     end
 
-    # Given a result keyname, delete the result
+    # Given a arguments for a result key, delete the result from the
+    # filesystem.
     #
     # Examples
     #   Process.delete_saved_result(key)
-    def self.delete_saved_result(keyname)
-      FileSystem.del( ProcessInfo.result_cache(keyname) )
+    def self.delete_saved_result(*key_args)
+      FileSystem.del( result_key(*key_args) )
     end
     
     # Remove redis keys associated with this process if the Master isn't working.

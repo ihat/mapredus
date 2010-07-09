@@ -36,13 +36,6 @@ module MapRedus
   #
   redis_key :temp, "mapredus:process:PID:temp_reduce_key:HASHED_KEY:UNIQUE_REDUCE_HOSTNAME:UNIQUE_REDUCE_PROCESS_ID"
 
-  # If we want to hold on to our final data we have a key to put that data in
-  # In normal map reduce we would just be outputting files
-  #
-  redis_key :result, "mapredus:process:PID:result"
-  redis_key :result_cache, "mapredus:result:KEYNAME"
-
-
   #### USED WITHIN master.rb ####
   
   # Keeps track of the current slaves (by appending "1" to a redis list)
