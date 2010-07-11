@@ -36,7 +36,7 @@ Rake::RDocTask.new do |rdoc|
 end
 
 Spec::Rake::SpecTask.new(:spec) do |t|
-  t.spec_files = FileList['spec/*.rb']
+  t.spec_files = FileList['spec/helper.rb', 'spec/helper_classes.rb', 'spec/mapredus_spec.rb']
   t.spec_opts = ["--color", "--format", "specdoc", 
                  "-f", "o:log/spec_profile.txt", 
                  "-f", "e:log/spec_failing.txt"]

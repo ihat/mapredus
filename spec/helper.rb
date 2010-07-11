@@ -35,6 +35,7 @@ end
 #
 # Set the redis server
 #
+RedisSupport.redis = 'localhost:9736:0'
 MapRedus.redis = 'localhost:9736:0'
 Resque.redis = MapRedus.redis
 require 'resque/failure/redis'

@@ -79,7 +79,7 @@ module MapRedus
     #
     def self.enslave( process, klass, *args )
       FileSystem.rpush(ProcessInfo.slaves(process.pid), 1)
-      
+
       if( process.synchronous )
         klass.perform(*args)
       else

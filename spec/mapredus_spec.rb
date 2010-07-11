@@ -207,7 +207,7 @@ describe "MapRedus Process" do
     end
 
     MapRedus::Process.kill_all
-    Resque.peek(:mapredus, 0, -1) == []
+    Resque.peek(:mapredus, 0, 100) == []
   end
 
   it "responses to next state correctly" do
@@ -290,7 +290,7 @@ describe "MapRedus Master" do
 
   it "handles slaves (enslaving) correctly" do
     MapRedus::Master.enslave(@process, MapRedus::WordCounter, @process.pid, "test")
-    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid, "test"], "class"=>"MapRedus::WordCounter"}]
+    Resque.peek(:mapredus, 0, 1).should == {"args"=>[@process.pid, "test"], "class"=>"MapRedus::WordCounter"}
     MapRedus::Master.slaves(@process.pid).should == ["1"]
   end
 
@@ -319,12 +319,12 @@ describe "MapRedus Mapper/Reducer/Finalizer" do
     @process.update(:state => MapRedus::INPUT_MAP_IN_PROGRESS)
     @process.state.should == MapRedus::INPUT_MAP_IN_PROGRESS
     @process.inputter.perform(@process.pid, "wordstream:test")
-    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid, 0], "class"=>"MapRedus::WordCounter"}]
+    Resque.peek(:mapredus, 0, 1).should == {"args"=>[@process.pid, 0], "class"=>"MapRedus::WordCounter"}
     Resque.pop(:mapredus)
     @process.mapper.perform(@process.pid, 0)
     @process.reload
     @process.state.should == MapRedus::REDUCE_IN_PROGRESS
-    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid, "data"], "class"=>"MapRedus::Adder"}]
+    Resque.peek(:mapredus, 0, 1).should == {"args"=>[@process.pid, "data"], "class"=>"MapRedus::Adder"}
   end
 
   it "runs a reduce correctly proceeding to the correct next state" do
@@ -334,7 +334,7 @@ describe "MapRedus Mapper/Reducer/Finalizer" do
     @process.reducer.perform(@process.pid, "data")
     @process.reload
     @process.state.should == MapRedus::FINALIZER_IN_PROGRESS
-    Resque.peek(:mapredus, 0, -1).should == [{"args"=>[@process.pid], "class"=>"MapRedus::ToRedisHash"}]
+    Resque.peek(:mapredus, 0, 1).should == {"args"=>[@process.pid], "class"=>"MapRedus::ToRedisHash"}
   end
 
   it "should test that the finalizer correctly saves" do
@@ -345,7 +345,7 @@ describe "MapRedus Mapper/Reducer/Finalizer" do
     @process.finalizer.perform(@process.pid)
     @process.reload
     @process.state.should == MapRedus::COMPLETE
-    Resque.peek(:mapredus, 0, -1).should == []
+    Resque.peek(:mapredus, 0, 100).should == []
     @process.outputter.decode("test:result", "data").should == "1"
   end
 end
