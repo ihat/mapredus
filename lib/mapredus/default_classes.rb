@@ -39,6 +39,10 @@ module MapRedus
   end
 
   class RedisHasher < Outputter
+    def self.values(result_key)
+      FileSystem.hvals(result_key)
+    end
+
     def self.keys(result_key)
       FileSystem.hkeys(result_key)
     end
