@@ -325,6 +325,8 @@ describe "MapRedus Mapper/Reducer/Finalizer" do
     @process.reload
     @process.state.should == MapRedus::REDUCE_IN_PROGRESS
     Resque.peek(:mapredus, 0, 1).should == {"args"=>[@process.pid, "data"], "class"=>"MapRedus::Adder"}
+
+    MapRedus::Process.open(@process.pid).state.should == MapRedus::REDUCE_IN_PROGRESS
   end
 
   it "runs a reduce correctly proceeding to the correct next state" do
@@ -335,6 +337,8 @@ describe "MapRedus Mapper/Reducer/Finalizer" do
     @process.reload
     @process.state.should == MapRedus::FINALIZER_IN_PROGRESS
     Resque.peek(:mapredus, 0, 1).should == {"args"=>[@process.pid], "class"=>"MapRedus::ToRedisHash"}
+
+    MapRedus::Process.open(@process.pid).state.should == MapRedus::FINALIZER_IN_PROGRESS
   end
 
   it "should test that the finalizer correctly saves" do

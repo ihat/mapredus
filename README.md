@@ -169,6 +169,7 @@ Requirements
 TODO
 ----
 not necessarily in the given order
+* Ensure that the type that is inputted is the type that is outputted
 
 * if a process fails we do what we are supposed to do i.e. add a
   failure_hook which does something if your process fails
