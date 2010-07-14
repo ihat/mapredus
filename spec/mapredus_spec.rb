@@ -351,6 +351,8 @@ describe "MapRedus Mapper/Reducer/Finalizer" do
     @process.state.should == MapRedus::COMPLETE
     Resque.peek(:mapredus, 0, 100).should == []
     @process.outputter.decode("test:result", "data").should == "1"
+
+    MapRedus::Process.open(@process.pid).state.should == MapRedus::COMPLETE
   end
 end
 
