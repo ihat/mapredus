@@ -210,16 +210,37 @@ describe "MapRedus Process" do
     Resque.peek(:mapredus, 0, 100) == []
   end
 
-  it "responses to next state correctly" do
+  it "responds to next state correctly" do
     @process.state.should == MapRedus::NOT_STARTED
     @process.next_state
     @process.state.should == MapRedus::INPUT_MAP_IN_PROGRESS
     work_off
 
+    ##
+    ## Since there are no map keys produced in this the next state
+    ## should go directly to the finalizer
+    ##
+    
+    @process.next_state
+    @process.state.should == MapRedus::FINALIZER_IN_PROGRESS
+    work_off
+    
+    @process.next_state
+    @process.state.should == MapRedus::COMPLETE
+  end
+
+  it "responds to next state correcty when keys are produced" do
+    @process.state.should == MapRedus::NOT_STARTED
+    @process.next_state
+    @process.state.should == MapRedus::INPUT_MAP_IN_PROGRESS
+    work_off
+
+    @process.emit_intermediate("hell", "yeah")
+
     @process.next_state
     @process.state.should == MapRedus::REDUCE_IN_PROGRESS
     work_off
-
+    
     @process.next_state
     @process.state.should == MapRedus::FINALIZER_IN_PROGRESS
     work_off

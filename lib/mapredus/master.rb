@@ -3,7 +3,7 @@ module MapRedus
   # a master interface with Resque
   #
   # Does bookkeeping to keep track of how many slaves are doing work. If we have
-  # no slaves doing work for a process then the process is done. While there is work available
+  # no slaves doing work for a process then the process is donex. While there is work available
   # the slaves will always be doing work.
   #
   class Master < QueueProcess
@@ -49,9 +49,23 @@ module MapRedus
       enslave( process, process.inputter, process.pid, data_object )
     end
     
+    # Enslave the reducers:
+    # 
+    # For each key, enslave a reducer to process the values on that
+    # key. If there were no keys produced during the map operation we
+    # must set off the finalizer.
+    #
+    # TODO: inject optimizations here for special reducers like the
+    # identity reduce
+    #
+    # returns nothing
     def self.enslave_reducers( process )
-      process.map_keys.each do |key|
-        enslave_reduce( process, key )
+      if( process.num_keys > 0 )
+        process.map_keys.each do |key|
+          enslave_reduce( process, key )
+        end
+      else
+        process.next_state
       end
     end
 

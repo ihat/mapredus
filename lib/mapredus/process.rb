@@ -236,6 +236,14 @@ module MapRedus
       end
     end
 
+    def num_keys()
+      if( not @ordered )
+        FileSystem.scard( ProcessInfo.keys(@pid) )
+      else
+        FileSystem.zcard( ProcessInfo.keys(@pid) )
+      end
+    end
+
     # values that the map operation produced, for a key
     #
     # Examples
