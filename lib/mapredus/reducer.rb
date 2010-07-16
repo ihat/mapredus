@@ -21,14 +21,24 @@ module MapRedus
     
     def self.reduce(values); raise InvalidReducer; end
     
+    #
+    # The overridable portion of a reducer perform.  In some default
+    # classes like Identity and Counter we do not call self.reduce but
+    # provide optimization for the reduction by overriding this
+    # method.
+    #
+    def self.reduce_perform(process, key)
+      reduce(process.map_values(key)) do |reduce_val|
+        process.emit( key, reduce_val )
+      end
+    end
+    
     # Doesn't handle redundant workers and fault tolerance
     #
     # TODO: Resque::AutoRetry might mess this up.
     def self.perform(pid, key)
       process = Process.open(pid)
-      reduce(process.map_values(key)) do |reduce_val|
-        process.emit( key, reduce_val )
-      end
+      reduce_perform(process, key)
     rescue MapRedus::RecoverableFail
       Master.enslave_later_reduce(process, key)
     ensure

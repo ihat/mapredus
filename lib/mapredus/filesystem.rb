@@ -18,7 +18,32 @@ module MapRedus
     end
 
     def self.method_missing(method, *args, &block)
-      storage.send(method, *args)
+      if storage.respond_to?(method)
+        storage.send(method, *args)
+      else
+        super
+      end
+    end
+
+    # Copy the values from one key to a second key
+    # 
+    # NOTE TODO: currently only works for the redis list data
+    # structure but will be extended for arbitrary data types.
+    #
+    # NOTE: this does not account for the key being changed during the
+    # copy, so should not be used in situations where the first_key
+    # value can change during the running of copy.
+    #
+    # Examples
+    #   FileSystem.copy("key_one", "key_two")
+    #
+    # returns true on success false otherwise
+    def self.copy(first_key, second_key)
+      list_length = storage.llen(first_key)
+      list_length.times do |index|
+        storage.rpush(second_key, storage.lindex(first_key, index))
+      end
+      true
     end
     
     # Setup locks on results using RedisSupport lock functionality

@@ -402,3 +402,27 @@ describe "MapRedus Support" do
     end
   end
 end
+
+describe "MapRedus Default Classes" do
+  before(:each) do
+    MapRedus::FileSystem.flushall
+    @process = GetWordCount.create
+  end
+
+  it "testing that the identity copy actually does a copy" do
+    MapRedus::FileSystem.rpush(@process.map_key("test_key"), "whatever")
+    MapRedus::FileSystem.rpush(@process.map_key("test_key"), "yeah")
+    MapRedus::Identity.perform(@process.pid, "test_key")
+
+    @process.map_values("test_key").should == ["whatever", "yeah"]
+    @process.reduce_values("test_key").should == ["whatever", "yeah"]
+  end
+
+  it "should properly do a count" do
+    MapRedus::FileSystem.rpush(@process.map_key("test_key"), "whatever")
+    MapRedus::FileSystem.rpush(@process.map_key("test_key"), "yeah")
+    MapRedus::Counter.perform(@process.pid, "test_key")
+
+    @process.reduce_values("test_key").should == ["2"]
+  end
+end

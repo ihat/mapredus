@@ -221,6 +221,21 @@ module MapRedus
             FileSystem.get( ProcessInfo.hash_to_key(@pid, hashed_key) ) == key.to_s )
     end
 
+    # Convenience methods to get the mapredus internal key string for a key
+    #
+    # Examples
+    #   reduce_key("document")
+    #   # => mapredus:process:PID:map_key:<Helper.hash("document")>:reduce
+    #   map_key("document")
+    #   # => mapredus:process:PID:map_key:<Helper.hash("document")>
+    #
+    # Returns the internal mapreduce string key for a given key.
+    [:reduce, :map].each do |internal_key|
+      define_method("#{internal_key}_key") do |key|
+        ProcessInfo.send(internal_key, @pid, Helper.hash(key))
+      end
+    end
+
     # Keys that the map operation produced
     #
     # Examples
