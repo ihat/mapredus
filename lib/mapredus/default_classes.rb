@@ -39,6 +39,13 @@ module MapRedus
   end
 
   class RedisHasher < Outputter
+    def self.to_hash(result_key)
+      keys(result_key).inject({}) do |hash, key|
+        hash[key] = decode(result_key, key)
+        hash
+      end
+    end
+
     def self.values(result_key)
       FileSystem.hvals(result_key)
     end
