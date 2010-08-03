@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{mapredus}
-  s.version = "0.0.4"
+  s.version = "0.0.5"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["John Le", "Brian O'Rourke"]
-  s.date = %q{2010-07-28}
+  s.date = %q{2010-08-02}
   s.description = %q{simple mapreduce framework using redis and resque}
   s.email = %q{john@doloreslabs.com}
   s.extra_rdoc_files = [
