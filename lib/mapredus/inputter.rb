@@ -14,13 +14,13 @@ module MapRedus
     #   scan(data_object) do |key, map_data|
     #     ...
     #   end
-    def self.scan(data_object)
+    def self.scan(*data_object)
       raise InvalidInputStream
     end
 
     def self.perform(pid, data_object)
       process = Process.open(pid)
-      scan(data_object) do |key, map_data|
+      scan(*data_object) do |key, map_data|
         FileSystem.hset(ProcessInfo.input(pid), key, map_data)
         Master.enslave_map(process, key)
       end

@@ -22,7 +22,7 @@ module MapRedus
     #
     def self.perform( pid, data_object )
       process = Process.open(pid)
-      enslave_inputter(process, data_object)
+      enslave_inputter(process, *data_object)
       process.update(:state => INPUT_MAP_IN_PROGRESS)
     end
 
@@ -31,11 +31,11 @@ module MapRedus
     #
     # The inputter sets off the mapper processes
     #
-    def self.mapreduce( process, data_object )
+    def self.mapreduce( process, *data_object )
       start_metrics(process.pid)
       if process.synchronous
         process.update(:state => INPUT_MAP_IN_PROGRESS)
-        enslave_inputter(process, data_object)
+        enslave_inputter(process, *data_object)
         process.update(:state => REDUCE_IN_PROGRESS)
         enslave_reducers(process)
         process.update(:state => FINALIZER_IN_PROGRESS)
@@ -45,8 +45,8 @@ module MapRedus
       end
     end
 
-    def self.enslave_inputter(process, data_object)
-      enslave( process, process.inputter, process.pid, data_object )
+    def self.enslave_inputter(process, *data_object)
+      enslave( process, process.inputter, process.pid, *data_object )
     end
     
     # Enslave the reducers:
