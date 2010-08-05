@@ -70,11 +70,11 @@ module MapRedus
     #
     # Examples
     #
-    #   Support::hash( key )
+    #   Support::key_hash( key )
     #   # => '8dd8hflf8dhod8doh9hef'
     #
     # Returns the hash.
-    def self.hash( key )
+    def self.key_hash( key )
       key.to_s.hash.abs.to_s(16)
     end
 

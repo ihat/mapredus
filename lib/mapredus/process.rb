@@ -186,7 +186,7 @@ module MapRedus
       if( not @ordered )
         key, value = key_value
         FileSystem.sadd( ProcessInfo.keys(@pid), key )
-        hashed_key = Helper.hash(key)
+        hashed_key = Helper.key_hash(key)
         FileSystem.rpush( ProcessInfo.map(@pid, hashed_key), value )
       else
         # if there's an order for the process then we should use a zset above
@@ -194,7 +194,7 @@ module MapRedus
         #
         rank, key, value = key_value
         FileSystem.zadd( ProcessInfo.keys(@pid), rank, key )
-        hashed_key = Helper.hash(key)
+        hashed_key = Helper.key_hash(key)
         FileSystem.rpush( ProcessInfo.map(@pid, hashed_key), value )
       end
       raise "Key Collision: key:#{key}, #{key.class} => hashed key:#{hashed_key}" if key_collision?(hashed_key, key)
@@ -212,7 +212,7 @@ module MapRedus
     #
     # Returns "OK" on success.
     def emit(key, reduce_val)
-      hashed_key = Helper.hash(key)
+      hashed_key = Helper.key_hash(key)
       FileSystem.rpush( ProcessInfo.reduce(@pid, hashed_key), reduce_val )
     end
 
@@ -225,14 +225,14 @@ module MapRedus
     #
     # Examples
     #   reduce_key("document")
-    #   # => mapredus:process:PID:map_key:<Helper.hash("document")>:reduce
+    #   # => mapredus:process:PID:map_key:<Helper.key_hash("document")>:reduce
     #   map_key("document")
-    #   # => mapredus:process:PID:map_key:<Helper.hash("document")>
+    #   # => mapredus:process:PID:map_key:<Helper.key_hash("document")>
     #
     # Returns the internal mapreduce string key for a given key.
     [:reduce, :map].each do |internal_key|
       define_method("#{internal_key}_key") do |key|
-        ProcessInfo.send(internal_key, @pid, Helper.hash(key))
+        ProcessInfo.send(internal_key, @pid, Helper.key_hash(key))
       end
     end
 
@@ -267,12 +267,12 @@ module MapRedus
     #
     # Returns the values.
     def map_values(key)
-      hashed_key = Helper.hash(key)
+      hashed_key = Helper.key_hash(key)
       FileSystem.lrange( ProcessInfo.map(@pid, hashed_key), 0, -1 )
     end
 
     def num_values(key)
-      hashed_key = Helper.hash(key)
+      hashed_key = Helper.key_hash(key)
       FileSystem.llen( ProcessInfo.map(@pid, hashed_key) )
     end
 
@@ -284,7 +284,7 @@ module MapRedus
     #
     # Returns the values.
     def reduce_values(key)
-      hashed_key = Helper.hash(key)
+      hashed_key = Helper.key_hash(key)
       FileSystem.lrange( ProcessInfo.reduce(@pid, hashed_key), 0, -1 )
     end
 
