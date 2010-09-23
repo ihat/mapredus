@@ -21,3 +21,5 @@ log
 
 ## PROJECT::SPECIFIC
 .bundle
+Gemfile.lock
+vendor
